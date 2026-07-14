@@ -115,3 +115,8 @@ hot-load.
   `references/inference.md`).
 - **Leave a trail the user can verify** — after a change, tell them what to check
   in the admin UI (the new policy, the sandbox state, the audit entry).
+- **Finish with a summary.** When you complete an install or setup, don't just
+  stop — orient the user: what's now running, the URL for each UI and what it's
+  for (platform web UI = govern; agent chat UI = talk to the agent), and the
+  concrete next steps — then offer to do them. See `references/playbooks.md`
+  (playbook 1, step 7).

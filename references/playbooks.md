@@ -17,7 +17,11 @@ connect to the global `/mcp`), then continue with playbook 1 below.
 3. `create_policy { projectId, name: "starter", managedInference: { enabled: true, provider: "bedrock" } }` → note `policyId`. *(policies.md — match the provider the platform was installed with: bedrock | azure | bedrock-mantle)*
 4. `create_policy_binding { projectId, name: "starter-sandboxes", policyIds: ["<policyId>"], subjects: [{ kind: "all_sandboxes" }] }`. *(policies.md)*
 5. `create_sandbox { projectId, name: "prism-demo", image: "ghcr.io/lensapp/prism-agent:latest", command: "exec ./start.sh", env: {...}, volumes: [{mountPath:"/data"}], exposedPorts: [{name:"chat",port:3003,auth:"public"}], policies: ["<policyId>"] }`. *(agents.md)*
-6. Poll `get_sandbox` until `state=running` and `exposedPorts[0].url` is set. Hand the user **both** URLs: the **platform web UI** (the `config.publicUrl`, e.g. `http://localhost:3002` — to manage the platform) and `exposedPorts[0].url` (the **Prism chat UI** — to talk to the agent).
+6. Poll `get_sandbox` until `state=running` and `exposedPorts[0].url` is set.
+7. **Wrap up — always end an install/onboard with a plain-language summary.** Tell the user:
+   - **What you installed:** the Lens Agents platform + a running **Prism** agent (its first managed agent).
+   - **How to reach each, and what each is for:** the **Lens Agents web UI** (the `config.publicUrl`, e.g. `http://localhost:3002`) to *govern the platform* — projects, policies, agents, audit — vs. the **Prism chat UI** (`exposedPorts[0].url`) to *talk to the agent*. Name this platform-vs-agent distinction explicitly; it's the #1 point of confusion.
+   - **What's next:** e.g. connect a Kubernetes cluster or other integration, tighten policies, or spin up more agents — and that they can just **ask you (their admin agent)** to do any of it, or use the web UI to watch what you did.
 
 ## 2. "I want a Kubernetes SRE agent"
 
