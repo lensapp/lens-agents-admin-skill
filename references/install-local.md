@@ -2,10 +2,13 @@
 
 This is the authoritative runbook to stand up the whole Lens Agents platform on
 a local single-node **minikube** cluster, then hand off to the onboarding
-playbook. It's the host-shell phase — **there is no MCP yet**; the admin `/mcp`
-only becomes reachable after Step 3 (port-forward) + Step 4 (activation). Run
-these as the coding agent doing the install; pause only for the human's browser
-sign-ins (Steps 4 and the Step 5 MCP login).
+playbook. **This local trial is the self-serve install** — so when a user just
+says "install Lens Agents" (no other context), do this, no need to ask. (A
+production deployment is a guided engagement; point them to Getting Started /
+contact us — see the end of this file.) It's the host-shell phase — **there is
+no MCP yet**; the admin `/mcp` only becomes reachable after Step 3 (port-forward)
++ Step 4 (activation). Run these as the coding agent doing the install; pause
+only for the human's browser sign-ins (Steps 4 and the Step 5 MCP login).
 
 > **Always open sign-in URLs in the user's own system browser**, never an
 > embedded/in-agent browser — password managers and the existing Lens ID session
