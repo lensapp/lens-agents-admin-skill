@@ -144,8 +144,10 @@ codex mcp login lens-agents
 Then run **playbook #1 "Onboard from zero"** (`playbooks.md`): `list_orgs` →
 `create_project` → `create_policy` (with `managedInference.provider` matching the
 provider you installed) → `create_policy_binding` → `create_sandbox` (the Prism
-agent; set `LLM_PROVIDER` to the same provider) → poll `get_sandbox` for the chat
-URL. See `agents.md` for the exact `create_sandbox` payload.
+agent; set `LLM_PROVIDER` to the same provider) → poll `get_sandbox` for the
+chat URL. Hand the user **both** URLs: the platform web UI (`config.publicUrl`)
+and the Prism chat URL (`exposedPorts[0].url`). See `agents.md` for the exact
+`create_sandbox` payload.
 
 > **Provider must match in three places** (Bedrock or Azure): the Helm
 > `inference.*` flag (Step 2), the policy `managedInference.provider`, and the

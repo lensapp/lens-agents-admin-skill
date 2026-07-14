@@ -17,7 +17,7 @@ connect to the global `/mcp`), then continue with playbook 1 below.
 3. `create_policy { projectId, name: "starter", managedInference: { enabled: true, provider: "bedrock" } }` → note `policyId`. *(policies.md — match the provider the platform was installed with: bedrock | azure | bedrock-mantle)*
 4. `create_policy_binding { projectId, name: "starter-sandboxes", policyIds: ["<policyId>"], subjects: [{ kind: "all_sandboxes" }] }`. *(policies.md)*
 5. `create_sandbox { projectId, name: "prism-demo", image: "ghcr.io/lensapp/prism-agent:latest", command: "exec ./start.sh", env: {...}, volumes: [{mountPath:"/data"}], exposedPorts: [{name:"chat",port:3003,auth:"public"}], policies: ["<policyId>"] }`. *(agents.md)*
-6. Poll `get_sandbox` until `state=running` and `exposedPorts[0].url` is set → hand the user that chat URL.
+6. Poll `get_sandbox` until `state=running` and `exposedPorts[0].url` is set. Hand the user **both** URLs: the **platform web UI** (the `config.publicUrl`, e.g. `http://localhost:3002` — to manage the platform) and `exposedPorts[0].url` (the **Prism chat UI** — to talk to the agent).
 
 ## 2. "I want a Kubernetes SRE agent"
 
