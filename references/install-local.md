@@ -129,9 +129,17 @@ claude mcp login lens-agents      # system browser, caches token
 codex mcp add lens-agents --url http://localhost:3002/mcp
 codex mcp login lens-agents
 ```
-- Sign in in the **system browser**. A just-added server may not hot-load in the
+- Sign in in the **system browser** (not an embedded/in-agent browser — password
+  managers and any existing session live there; Codex's built-in browser usually
+  can't complete the sign-in). A just-added server may not hot-load in the
   current session — run the launch in a fresh `claude -p` child / `codex exec`,
   or restart. Keep the Step 3 port-forward alive.
+- **MCP client can't do interactive OIDC?** Authenticate with a bearer token
+  instead (you still drive everything over MCP): as the admin, create an API
+  token in the platform UI (**API tokens**) or via `create_api_token`, then add
+  the server with a header —
+  `claude mcp add --transport http lens-agents <url> --header "Authorization: Bearer <token>"`.
+  Exact params for any tool are in the live schema (`tools/list` / `/v1/openapi.json`).
 
 Then run **playbook #1 "Onboard from zero"** (`playbooks.md`): `list_orgs` →
 `create_project` → `create_policy` (with `managedInference.provider` matching the
