@@ -10,6 +10,19 @@ no MCP yet**; the admin `/mcp` only becomes reachable after Step 3 (port-forward
 + Step 4 (activation). Run these as the coding agent doing the install; pause
 only for the human's browser sign-ins (Steps 4 and the Step 5 MCP login).
 
+> **Before you start — get a full-access shell.** Every step below runs real
+> **host** commands (Docker/OrbStack, minikube, kubectl, Helm) that need the
+> **Docker socket** and **network** (image pulls, the Helm OCI chart,
+> activation). A restricted/read-only or no-network agent sandbox **cannot**
+> complete this. **Ask the user once, up front, for full/unsandboxed shell
+> permissions** (e.g. Codex: full-access mode) — don't start sandboxed and hit
+> the wall mid-install. Two common gotchas: (1) the container runtime may be
+> **stopped** — start Docker/OrbStack and wait for its socket before
+> `minikube start`; (2) the CLIs may be **off your shell's `PATH`** (e.g.
+> OrbStack's `docker` at `/usr/local/bin/docker`) and you may need
+> `PATH=/usr/local/bin:$PATH` so minikube's driver check can find `docker` —
+> resolve full paths before concluding a tool is missing.
+
 > **Always open sign-in URLs in the user's own system browser**, never an
 > embedded/in-agent browser — password managers and the existing Lens ID session
 > live in the real browser.

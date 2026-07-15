@@ -11,8 +11,10 @@ description: >-
   any request to install the platform, onboard an agent, connect a cluster, wire
   an integration, or govern agent access.
 compatibility: >-
-  Works with any Agent Skills client. Needs a Lens Agents platform MCP endpoint
-  (or the local trial, which uses minikube + Helm) and network/shell access.
+  Works with any Agent Skills client. The local install runs real host tools
+  (Docker, minikube, kubectl, Helm) over the network and needs the Docker
+  socket — run it with a full-access (unsandboxed) shell. Ongoing admin needs a
+  Lens Agents platform MCP endpoint.
 metadata:
   version: "1.0"
 ---
@@ -44,6 +46,15 @@ coding agent; work from it directly.
     for an install). If one isn't present locally, fetch it from the public repo
     instead of guessing:
     `https://raw.githubusercontent.com/lensapp/lens-agents-admin-skill/main/lens-agents-admin/references/<name>.md`
+
+!!! warning "Installing needs a full-access shell — set this up first"
+    The local install runs real host tools (Docker/OrbStack, minikube, kubectl,
+    Helm) **over the network** and needs the **Docker socket** — it will not work
+    in a restricted/read-only or no-network agent sandbox. **Request full,
+    unsandboxed shell permissions once, up front** (e.g. Codex: full-access mode)
+    rather than discovering the block partway through. Also: prereq binaries may
+    be off your shell's `PATH` (e.g. OrbStack's docker under `/usr/local/bin`) —
+    resolve full paths before concluding a tool is missing.
 
 ## What Lens Agents is (the mental model)
 
