@@ -58,18 +58,20 @@ coding agent; work from it directly.
 
 ## What Lens Agents is (the mental model)
 
-It's **two things layered together** — users constantly conflate them:
+**Lens Agents is a platform** that governs AI agents — identity/SSO, projects,
+**policies** (network egress, credential injection, managed inference),
+credentials the agent never sees, connections (K8s/AWS/MCP), sandboxes,
+spending, and a complete audit trail. Its admin surface is the
+`mcp__lens-agents__*` tools (+ a web admin UI for observation). **The platform
+is the product** — even though the name says "Agents."
 
-1. **The platform** — the governance-and-sandbox plane: identity/SSO,
-   projects, **policies** (network egress, credential injection, managed
-   inference), credentials the agent never sees, connections (K8s/AWS/MCP),
-   sandboxes, spending, and a complete audit trail. Its admin surface is the
-   `mcp__lens-agents__*` tools (+ a web admin UI for observation).
-2. **Managed agents that run *on* it** — e.g. **Prism**: a tenant workload in a
-   sandbox with memory, heartbeat, scheduling, chat. A managed agent is **not**
-   the platform, and **not** the admin surface. It's the "hello world."
+**Managed agents run *on* the platform** — e.g. **Prism**: a tenant workload in
+a sandbox with memory, heartbeat, scheduling, and a chat UI. A managed agent is
+**not** the platform and **not** the admin surface — it's the "hello world" you
+launch, one of the agent types the platform governs.
 
-So there are **two UIs**: the **platform admin UI / this MCP** (govern the
+The #1 thing people conflate is **the platform vs. an agent running on it**, so
+there are **two UIs**: the **platform admin UI / this MCP** (govern the
 platform) vs a **managed agent's chat UI** (talk to one agent). When a user asks
 "what do I do now?", orient them on this split first.
 
