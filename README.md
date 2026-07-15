@@ -16,7 +16,10 @@ Works in **any** Agent Skills client (Claude Code, Codex, OpenCode, … — CLI 
 desktop app). Just paste this prompt; the agent installs the skill itself and
 follows it:
 
-> **Install the Lens Agents admin skill from https://github.com/lensapp/lens-agents-admin-skill and follow it to set up Lens Agents.**
+> **Install the Lens Agents admin skill from https://github.com/lensapp/lens-agents-admin-skill/tree/main/lens-agents-admin and follow it to set up Lens Agents.**
+
+(The URL points at the skill **folder**, not the repo root — that's what lets an
+installer grab the skill directly instead of hunting for it.)
 
 The agent installs this skill (so it's reusable — your ongoing Lens Agents
 admin) and follows `SKILL.md` to stand up the platform and launch a first agent
@@ -24,10 +27,13 @@ admin) and follows `SKILL.md` to stand up the platform and launch a first agent
 
 ### If you are that coding agent
 
-1. **Install this skill so it's reusable** — run in a terminal:
-   `npx skills add lensapp/lens-agents-admin-skill -g -a <your-agent> --copy`
+1. **Install this skill so it's reusable** — point your installer at the skill
+   **folder URL** (`…/tree/main/lens-agents-admin`), not the repo root, so it
+   grabs the skill directly instead of hunting for it:
+   `npx skills add https://github.com/lensapp/lens-agents-admin-skill/tree/main/lens-agents-admin -g -a <your-agent> --copy`
    (`-a claude-code` | `codex` | `cursor` | …; `-g` = user-level, discovered by
-   both the CLI and the desktop app). **Can't install it?** Just read
+   both the CLI and the desktop app; the shorthand `lensapp/lens-agents-admin-skill`
+   also works for this CLI). **Can't install it?** Just read
    `lens-agents-admin/SKILL.md` + `lens-agents-admin/references/*.md` from this
    repo and follow them directly.
 2. **Then read `lens-agents-admin/SKILL.md` and follow it.** For an install
