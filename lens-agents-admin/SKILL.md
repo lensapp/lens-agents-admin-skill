@@ -10,6 +10,11 @@ description: >-
   Triggers on "Lens Agents", the platform MCP at <publicUrl>/mcp, or
   any request to install the platform, onboard an agent, connect a cluster, wire
   an integration, or govern agent access.
+compatibility: >-
+  Works with any Agent Skills client. Needs a Lens Agents platform MCP endpoint
+  (or the local trial, which uses minikube + Helm) and network/shell access.
+metadata:
+  version: "1.0"
 ---
 
 # Lens Agents — Platform Admin

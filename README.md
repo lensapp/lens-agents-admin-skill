@@ -37,6 +37,17 @@ Complete the sign-in in your **system browser** (not an embedded one). Now just
 talk to the agent: *"set up my Lens Agents platform"*, *"give me a Kubernetes SRE
 agent"*, *"integrate our reservations system over MCP"*.
 
+### Staying up to date
+
+Installed skills are local copies — they don't auto-update. To refresh to the
+latest version, re-run the update:
+
+```bash
+npx skills update lens-agents-admin      # or: npx skills add lensapp/lens-agents-admin-skill -a <agent> --copy
+```
+
+If the agent's guidance ever looks out of step with the platform, that's the fix.
+
 > The agent administers the platform **as you** (your OIDC session). The web
 > admin UI at `<publicUrl>` remains — use it to validate and observe what the
 > agent did.
