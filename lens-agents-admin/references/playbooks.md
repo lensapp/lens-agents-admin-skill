@@ -12,7 +12,7 @@ connect to the global `/mcp`), then continue with playbook 1 below.
 
 ## 1. Onboard the platform from zero → a running agent
 
-1. `list_orgs` → pick the org id (if none exists, ask the user to create one from their own session). *(tenancy.md)*
+1. `list_orgs` → pick the org id. **If it's empty** (common on a fresh install): you're on an OIDC session here, so **ask the user for an org name and `create_org { name }` yourself**, then use its id — don't send them to the UI. (Only an API-token principal must defer org creation to a human.) *(tenancy.md)*
 2. `create_project { orgId, name: "demo", displayName: "Demo" }` → note `projectId`. *(tenancy.md)*
 3. `create_policy { projectId, name: "starter", managedInference: { enabled: true, provider: "bedrock" } }` → note `policyId`. *(policies.md — match the provider the platform was installed with: bedrock | azure | bedrock-mantle)*
 4. `create_policy_binding { projectId, name: "starter-sandboxes", policyIds: ["<policyId>"], subjects: [{ kind: "all_sandboxes" }] }`. *(policies.md)*

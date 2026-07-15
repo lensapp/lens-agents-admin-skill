@@ -157,8 +157,10 @@ codex mcp login lens-agents
   `claude mcp add --transport http lens-agents <url> --header "Authorization: Bearer <token>"`.
   Exact params for any tool are in the live schema (`tools/list` / `/v1/openapi.json`).
 
-Then run **playbook #1 "Onboard from zero"** (`playbooks.md`): `list_orgs` →
-`create_project` → `create_policy` (with `managedInference.provider` matching the
+Then run **playbook #1 "Onboard from zero"** (`playbooks.md`): `list_orgs`
+(empty on a fresh install → **ask the user for an org name and `create_org`
+yourself**; you're OIDC-signed-in, so don't punt to the UI) → `create_project` →
+`create_policy` (with `managedInference.provider` matching the
 provider you installed) → `create_policy_binding` → `create_sandbox` (the Prism
 agent; set `LLM_PROVIDER` to the same provider) → poll `get_sandbox` for the
 chat URL. Hand the user **both** URLs: the platform web UI (`config.publicUrl`)

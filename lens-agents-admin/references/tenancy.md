@@ -11,8 +11,12 @@ projects; users and API tokens act within the projects their team reaches.
 Tools: `list_orgs`, `get_org`, `create_org`, `update_org`, `delete_org`,
 `remove_org_member`.
 
-Most trials already have exactly one org — call `list_orgs` and use it.
-`create_org` requires a human's own OIDC session (an org is the human's tenant).
+Call `list_orgs` and use the org it returns. **If it's empty** (common right
+after a fresh install/activation), **create the org yourself**: ask the user for
+an org name, then `create_org { name }`, and continue with its id — don't punt
+to the web UI. `create_org` works on an **OIDC session** (the coding-agent
+onboarding path), because an org is a human's tenant; it's the one creation an
+**API-token** principal can't do (an admin agent must have its org already).
 
 ## Projects
 

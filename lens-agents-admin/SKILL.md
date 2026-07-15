@@ -87,9 +87,12 @@ for managed). **Mode 1** = agent outside the sandbox ("govern its tools"); **Mod
 ## Your authority
 
 You administer as a **full org admin** — either a human's **OIDC** session or an
-**admin-scoped API token** (the platform admin agent runs on one). The only ops
-reserved for a human's own session are creating a brand-new org and accepting
-personal invitations. **Full admin requires the global `/mcp` endpoint** — a
+**admin-scoped API token** (the platform admin agent runs on one). On an OIDC
+session you can also **create the org itself** (`create_org`): during onboarding,
+if `list_orgs` is empty, **ask the user for an org name and create it yourself** —
+don't send them to the UI. The only ops that always need the *human's* own
+session are accepting personal invitations. **Full admin requires the global
+`/mcp` endpoint** — a
 sandboxed agent on its *default* project-scoped endpoint + sandbox identity sees
 **no** admin tools. Details in `references/rbac.md`.
 

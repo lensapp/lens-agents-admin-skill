@@ -13,19 +13,24 @@ credentials, connections (Kubernetes/AWS), MCP connectors, agents/sandboxes,
 spending limits, teams, and read audit/usage. **Just do the work** — you don't
 need to reason about auth types for normal administration.
 
-## The only things that need a human OIDC session
+## Org creation: do it yourself on OIDC
 
-Two narrow, human-identity operations are not available to an API token (they
-aren't platform administration):
+**Creating a brand-new organization** (`create_org`) needs an **OIDC session** —
+which you have on the coding-agent onboarding path. So if `list_orgs` is empty,
+**ask the user for an org name and call `create_org` yourself**; do **not** send
+them to the web UI to make it. Org creation is only out of reach for an
+**API-token** principal (e.g. a provisioned admin agent), which must already
+have its org.
 
-- **Creating a brand-new organization** (`create_org`) — an org is your tenant;
-  it's set up during human onboarding.
+## The only things that always need the *human's* own session
+
 - **Personal invitations** — `list_my_invitations` / `accept_invitation` /
-  `decline_invitation` act on a specific human's own invitations. (You *can*
-  still `invite_org_member`.)
+  `decline_invitation` act on a specific human's own invitations, so they need
+  that person's session no matter how you're authed. (You *can* still
+  `invite_org_member`.)
 
-If you ever hit one of these, ask the user to do it from their own signed-in
-session; everything else, do yourself.
+If you hit one of these, ask the user to do it from their own signed-in session;
+everything else — org included, on OIDC — do yourself.
 
 ## If you're an agent WITHOUT an admin token
 
