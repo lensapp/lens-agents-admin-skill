@@ -46,8 +46,51 @@ Tools: `list_clusters`, `get_cluster`, `create_cluster`, `update_cluster`,
    - Chart `values.yaml` keys: `config.mode` (`tunnel`|`server`),
      `config.tunnelUrl`, `config.tunnelToken`, `config.jwksUrl` / `config.publicKey`.
 3. **Verify:** the relay pod in `nexus-relay` reaches `Running` and its logs show
-   the tunnel connected. Then any agent that has this cluster in its policy can
-   kubectl through it.
+   the tunnel connected.
+4. **Grant the agent identity cluster RBAC** (required — see next section), or the
+   agent can authenticate to the cluster but do nothing.
+
+### Grant the impersonated identity cluster RBAC (required)
+
+The relay authenticates to the API server as **itself** and **impersonates** the
+agent. The chart already gives the relay's ServiceAccount the `impersonate`
+rights (unrestricted) — **you don't touch that**. But an impersonated identity
+with **no RoleBinding can authenticate and still do nothing**. You must bind a
+real Role to the exact identity the platform sends:
+
+| Principal | Identity string the relay sends |
+|-----------|--------------------------------|
+| Managed / API-token agent | user `agent:<apiTokenName>` (the token's name, not a free-form agent name) |
+| Human (OIDC) | user `oidc:<email>` |
+| Team | group `<orgName>/<teamName>` — one per team, **no prefix** |
+
+These land verbatim in the `Impersonate-User` / `Impersonate-Group` headers, so
+the RBAC subject `name` must match the string **exactly**.
+
+**Recommended — bind to the team group** (every agent on that team inherits the
+access; group membership follows team assignment on the platform):
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding          # use RoleBinding to scope to one namespace
+metadata:
+  name: lens-agents-team-view
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view                      # built-in read-only; use a custom Role for write access
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: "acme/platform-team"    # <orgName>/<teamName> — quote it, it contains a slash
+```
+
+Or bind to **one agent** for finer isolation — same manifest with
+`kind: User`, `name: agent:<apiTokenName>`. Start from the built-in read-only
+`view` ClusterRole and grant write verbs only via a purpose-built Role (least
+privilege). Division of labor: the **platform policy** decides *whether* the
+agent may reach the cluster at all; **Kubernetes RBAC** decides *what* it can do
+once there — both must allow it.
 
 ### Local trial — relay and platform share one minikube
 
