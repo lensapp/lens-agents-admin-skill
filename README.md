@@ -12,13 +12,20 @@ those** — install the skill and talk to your agent.
 
 ## Install into your coding agent
 
+Run this **in your terminal** (not by pasting it into the agent's chat). `-g`
+installs it user-level so both the CLI and the desktop app can see it:
+
 ```bash
 # Claude Code
-npx skills add lensapp/lens-agents-admin-skill -a claude-code --copy
+npx skills add lensapp/lens-agents-admin-skill -g -a claude-code --copy
 
 # Codex
-npx skills add lensapp/lens-agents-admin-skill -a codex --copy
+npx skills add lensapp/lens-agents-admin-skill -g -a codex --copy
 ```
+
+Then just talk to your agent (in the CLI or the desktop app) — e.g. "Install
+Lens Agents". Don't paste the `npx` command into the agent chat: the app will
+try to run it in its sandbox (no `npx`/network) instead of installing the skill.
 
 Then connect the agent to your platform's MCP and sign in (OIDC gives it full
 admin — no API token to manage):
