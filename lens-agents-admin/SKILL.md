@@ -33,18 +33,12 @@ coding agent; work from it directly.
   cross-cutting rules and gotchas, correct sequencing, the install path (which
   is in no spec), and how to configure the managed agents you launch.
 
-!!! important "Getting your reference files — READ THIS FIRST"
-    The detailed runbooks live in `references/*.md` in this bundle. **Some
-    installers copy only this `SKILL.md` and drop `references/`** (e.g. `npx
-    skills add … --copy`). If a `references/<name>.md` this skill points to
-    **isn't present next to this file**, fetch it from the public repo before you
-    rely on it — do not fall back to guessing:
-
-    - Raw: `https://raw.githubusercontent.com/lensapp/lens-agents-admin-skill/main/references/<name>.md`
-    - Browse: https://github.com/lensapp/lens-agents-admin-skill/tree/main/references
-
-    For example, for an install request, first fetch `install-local.md` and
-    `playbooks.md` from there, then follow them.
+!!! note "Reference files"
+    The detailed runbooks live in `references/*.md` alongside this file — load
+    them on demand (e.g. `references/install-local.md` + `references/playbooks.md`
+    for an install). If one isn't present locally, fetch it from the public repo
+    instead of guessing:
+    `https://raw.githubusercontent.com/lensapp/lens-agents-admin-skill/main/lens-agents-admin/references/<name>.md`
 
 ## What Lens Agents is (the mental model)
 

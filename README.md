@@ -77,9 +77,15 @@ well (no parameter drift).
 
 ## Layout
 
+The skill lives in the [`lens-agents-admin/`](lens-agents-admin/) directory
+(named to match the skill's `name`, per the [agentskills.io spec](https://agentskills.io/specification)
+— this is what makes `npx skills add` copy the whole bundle, references
+included, rather than just `SKILL.md`):
+
 ```
-SKILL.md              # runbook + router: mental model, connect, "read the live schema", reference map, rules
-references/
+lens-agents-admin/
+  SKILL.md            # runbook + router: mental model, connect, "read the live schema", reference map, rules
+  references/
   concepts.md         # the WHY — governance model, Mode 1/2, autonomy-vs-policy, honest limitations
   architecture.md     # internals: two MCP endpoints, sandbox-as-principal, the two proxies, network policy, TTLs
   install-local.md    # stand up the whole platform on minikube (Bedrock/Azure), then onboard
