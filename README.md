@@ -1,31 +1,39 @@
 # lens-agents-admin skill
 
 An [Agent Skill](https://agentskills.io) that turns any coding agent (Claude
-Code, Codex, or a Prism agent) into a **Lens Agents platform admin** — grounded
-in the platform's MCP admin surface so it can set up projects, policies,
-connections, and agents, and govern spending and audit, without you knowing the
-internals.
+Code, Codex, OpenCode, …, or a Prism agent) into a **Lens Agents platform
+admin** — grounded in the platform's MCP admin surface so it can install, set
+up, and govern the platform (projects, policies, connections, agents, spending,
+audit) without you knowing the internals.
 
-This is the file-drop bundle; the agent-facing runbook is [`SKILL.md`](SKILL.md)
-with deep detail in [`references/`](references/). **Humans don't need to read
-those** — install the skill and talk to your agent.
+The skill lives in [`lens-agents-admin/`](lens-agents-admin/): the agent-facing
+runbook is [`SKILL.md`](lens-agents-admin/SKILL.md), with deep detail in
+[`references/`](lens-agents-admin/references/). Humans don't need to read those.
 
-## Install into your coding agent
+## Quick start — paste this into your coding agent
 
-Run this **in your terminal** (not by pasting it into the agent's chat). `-g`
-installs it user-level so both the CLI and the desktop app can see it:
+Works in **any** Agent Skills client (Claude Code, Codex, OpenCode, … — CLI or
+desktop app). Just paste this prompt; the agent installs the skill itself and
+follows it:
 
-```bash
-# Claude Code
-npx skills add lensapp/lens-agents-admin-skill -g -a claude-code --copy
+> **Install the Lens Agents admin skill from https://github.com/lensapp/lens-agents-admin-skill and follow it to set up Lens Agents.**
 
-# Codex
-npx skills add lensapp/lens-agents-admin-skill -g -a codex --copy
-```
+The agent installs this skill (so it's reusable — your ongoing Lens Agents
+admin) and follows `SKILL.md` to stand up the platform and launch a first agent
+(Prism), handing you both URLs at the end.
 
-Then just talk to your agent (in the CLI or the desktop app) — e.g. "Install
-Lens Agents". Don't paste the `npx` command into the agent chat: the app will
-try to run it in its sandbox (no `npx`/network) instead of installing the skill.
+### If you are that coding agent
+
+1. **Install this skill so it's reusable** — run in a terminal:
+   `npx skills add lensapp/lens-agents-admin-skill -g -a <your-agent> --copy`
+   (`-a claude-code` | `codex` | `cursor` | …; `-g` = user-level, discovered by
+   both the CLI and the desktop app). **Can't install it?** Just read
+   `lens-agents-admin/SKILL.md` + `lens-agents-admin/references/*.md` from this
+   repo and follow them directly.
+2. **Then read `lens-agents-admin/SKILL.md` and follow it.** For an install
+   request it walks minikube → Helm → activate → onboard, ending with a summary
+   and both URLs. Run the install yourself (or read the files directly) — don't
+   just paste the `npx` command back into the user's chat.
 
 Then connect the agent to your platform's MCP and sign in (OIDC gives it full
 admin — no API token to manage):
