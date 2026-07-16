@@ -86,13 +86,15 @@ for managed). **Mode 1** = agent outside the sandbox ("govern its tools"); **Mod
 
 ## Your authority
 
-You administer as a **full org admin** — either a human's **OIDC** session or an
-**admin-scoped API token** (the platform admin agent runs on one). On an OIDC
-session you can also **create the org itself** (`create_org`): during onboarding,
-if `list_orgs` is empty, **ask the user for an org name and create it yourself** —
-don't send them to the UI. The only ops that always need the *human's* own
-session are accepting personal invitations. **Full admin requires the global
-`/mcp` endpoint** — a
+Two admin tiers (see `references/rbac.md`): a human's **OIDC** session that's an
+org admin has **full** control (incl. org-scoped ops); an **API token** is never
+an org admin but administers any **project** its team holds **ADMIN** role on
+(policies, credentials, sandboxes, bindings). A default **sandbox** identity is
+capped at MEMBER — it can't self-administer. On an OIDC session you can also
+**create the org itself** (`create_org`): during onboarding, if `list_orgs` is
+empty, **ask the user for an org name and create it yourself** — don't send them
+to the UI. The only ops that always need the *human's* own session are accepting
+personal invitations. **Admin tools require the global `/mcp` endpoint** — a
 sandboxed agent on its *default* project-scoped endpoint + sandbox identity sees
 **no** admin tools. Details in `references/rbac.md`.
 
@@ -123,7 +125,7 @@ hot-load.
 | Inject credentials; connect K8s/AWS/GitHub | `references/credentials.md`, `references/connections.md` |
 | Wire upstream MCP servers | `references/mcp-connectors.md` |
 | Launch **and configure** a managed (Prism) agent | `references/agents.md` |
-| Orgs / teams / projects / tokens | `references/tenancy.md` |
+| Orgs / teams / projects / tokens (+ how a token gets project-admin) | `references/tenancy.md` |
 | Spending, usage, audit | `references/governance.md` |
 | Avoid the traps (fail-open/closed, thresholds, caps, reserved names) | `references/gotchas.md` |
 | Step-by-step recipes for the common jobs | `references/playbooks.md` |

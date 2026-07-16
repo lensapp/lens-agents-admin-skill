@@ -1,6 +1,7 @@
 # Playbooks — ordered recipes
 
-Run these as an admin (an OIDC session, or an admin-scoped API token). Confirm
+Run these as an admin — an OIDC org-admin session, or (for project-scoped steps)
+an API token on a team with project-ADMIN role. Confirm
 each heavy step with the user first. Substitute `<...>` from earlier outputs.
 For exact tool params, read `tools/list` / the OpenAPI spec — these show the
 *sequence*, not full payloads.

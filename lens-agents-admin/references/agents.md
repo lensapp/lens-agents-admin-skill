@@ -44,8 +44,9 @@ provider. Image `ghcr.io/lensapp/prism-agent:latest`, command `exec ./start.sh`,
 - `NEXUS_MCP_URL` and `NEXUS_API_URL` are **independent** (tools vs LLM proxy),
   not fallbacks for each other. `NEXUS_MCP_URL` is the **project-scoped** endpoint
   — the agent passes **no MCP auth token**; the sandbox proxy injects it. (An
-  *admin* agent that must call the global admin `/mcp` with its own admin token
-  is the exception — that needs extra wiring; see `rbac.md`.)
+  *admin* agent that must call the global admin `/mcp` with its own
+  **project-admin API token** is the exception — that needs extra wiring; see
+  `rbac.md`.)
 - Optional: `PRISM_DATA_DIR`/`PRISM_SKILLS_DIR`, `SLACK_BOT_TOKEN`/
   `SLACK_APP_TOKEN`, Langfuse/OTel vars.
 

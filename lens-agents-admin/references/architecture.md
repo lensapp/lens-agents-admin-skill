@@ -18,9 +18,10 @@ tools** — that's not a bug. Full administration requires the global `/mcp`.
 `oidc | api-token | cluster-jwt | sandbox` (composite auth order on `/mcp`:
 sandbox-token → api-token → OIDC).
 - **oidc** — humans; sees **all** tools; org-admin if the DB says so.
-- **api-token** — external callers / an admin agent; Bearer (`lns_` prefix); sees
-  a subset; carries an **org-admin scope flag** (an admin-scoped token
-  administers exactly like an OIDC admin — see `rbac.md`).
+- **api-token** — external callers / a per-project admin agent; Bearer (`lns_`
+  prefix); **never org-admin**; sees the api-token-visible tool subset and can
+  administer a **project** it holds **ADMIN** role on (via its team) — org-scoped
+  ops stay OIDC-only. See `rbac.md`.
 - **cluster-jwt** — the cluster relay identity (`lnsc_` prefix).
 - **sandbox** — a managed agent's identity; scoped to one project as **MEMBER**,
   **never** org-admin. No first-party admin tool is even visible to it.

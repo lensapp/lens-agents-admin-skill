@@ -32,8 +32,9 @@ Tools: `list_teams`, `get_team`, `create_team`, `update_team`, `delete_team`,
 `remove_team_project_access`.
 
 Teams are how a **user or API token gains project access and a project role**
-(`ADMIN`/`MEMBER`). (An admin-scoped token is already org-admin, so it has
-project ADMIN everywhere without team membership.)
+(`ADMIN`/`MEMBER`) — for an API token this is the **only** way it becomes a
+project admin (there is no org-admin token). Org admins (OIDC) implicitly have
+ADMIN on every project without team membership.
 
 ## Invitations
 
@@ -44,11 +45,22 @@ a human's own invitations, so they need that human's OIDC session.
 ## API tokens
 
 Tools: `list_api_tokens`, `create_api_token`, `revoke_api_token`. A created
-token's value is shown **once** — store it immediately.
+token's value is shown **once** — store it immediately. Minting/revoking a token
+needs an **org-admin (OIDC) session** (these tools aren't offered to a token).
 
 An API token is a **bearer credential for a non-human principal** (an external
-agent, or a managed agent you provision). Set **`orgAdmin: true`** to mint an
-**admin-scoped token** — this is how you provision a platform admin agent
-(Prism/"Odin") that can administer the platform. A default token
-(`orgAdmin` omitted/false) is project-scoped: read/observe + cluster/AWS/shell,
-plus whatever its team grants. Only an admin session can mint tokens.
+agent, or a managed agent you provision). **A token is never an org admin, and
+there is no `orgAdmin` flag** — its power comes entirely from the **team(s) it's
+on** and those teams' **project roles**:
+
+- Put the token on a team with **project ADMIN** role
+  (`set_team_project_access` → `ADMIN`): it can administer that project — create/
+  update/delete its policies, credentials, sandboxes, and project-scoped
+  bindings, over the **global `/mcp`**. This is how you provision a per-project
+  admin agent ("Odin").
+- **Project MEMBER** (the default): read/observe + manage clusters/AWS + run
+  in-sandbox shell — but not create policies/sandboxes.
+
+Org-scoped actions (create org/project, mint/revoke tokens, org-level policies &
+bindings, team CRUD, project lifecycle) always require an **org-admin human
+(OIDC)**. See `rbac.md`.

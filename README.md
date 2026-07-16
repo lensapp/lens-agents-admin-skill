@@ -89,14 +89,20 @@ Give it an admin persona (no code) with the agent's own tools: `rename_self`
 
 > **Scope, honestly.** A seeded Prism can *explain* the platform and do its
 > project-scoped work today, but a sandbox's default connection is the
-> **project-scoped** MCP endpoint with a sandbox identity — which exposes **no**
-> admin tools. So a sandboxed Prism is **not** a full platform admin out of the
-> box, even with the skill. Full in-sandbox administration is a deliberate
-> platform feature (the privileged **admin agent**): it needs (1) the platform's
-> API-token org-admin change, (2) prism-agent MCP-token plumbing, and (3) a
-> provisioning path that points that one agent at the **global** `/mcp` with an
-> admin-scoped token. Until that ships, **use a coding agent (OIDC) as your
-> admin** (top of this README) — it has the full surface today.
+> **project-scoped** MCP endpoint with a **sandbox identity** — which exposes no
+> admin tools, and a sandbox principal is hard-capped at project **MEMBER**
+> regardless of team role. So a sandboxed Prism is **not** a project admin out of
+> the box, even with the skill.
+>
+> The platform *does* now let an **API-token** principal on a team with project
+> **ADMIN** role administer that project over the **global `/mcp`** (policies,
+> credentials, sandboxes, bindings — shipped in NEXUS-96). But turning a
+> **managed** Prism into that admin agent still needs prism-agent work: run it on
+> a **project-admin API token** instead of the sandbox identity, and point it at
+> the **global** `/mcp` (not the default project-scoped endpoint). Until that
+> ships, your admin should be either a **coding agent signed in via OIDC** (top of
+> this README) or an **external agent** given a project-admin API token — both
+> have the admin surface today.
 
 ## Philosophy
 
@@ -121,7 +127,7 @@ lens-agents-admin/
   concepts.md         # the WHY — governance model, Mode 1/2, autonomy-vs-policy, honest limitations
   architecture.md     # internals: two MCP endpoints, sandbox-as-principal, the two proxies, network policy, TTLs
   install-local.md    # stand up the whole platform on minikube (Bedrock/Azure), then onboard
-  rbac.md             # who administers (OIDC / admin-scoped token) — read before acting
+  rbac.md             # who administers (OIDC org-admin / project-admin token / sandbox) — read before acting
   tenancy.md          # orgs, teams, projects, membership, API tokens
   policies.md         # policy + binding semantics (ceiling/clip/drift, people-vs-sandbox axes)
   inference.md        # managed inference: backends, metering boundary, PII fail modes, env traps
