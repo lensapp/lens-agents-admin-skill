@@ -43,10 +43,12 @@ provider. Image `ghcr.io/lensapp/prism-agent:latest`, command `exec ./start.sh`,
   real AWS/Azure creds.
 - `NEXUS_MCP_URL` and `NEXUS_API_URL` are **independent** (tools vs LLM proxy),
   not fallbacks for each other. `NEXUS_MCP_URL` is the **project-scoped** endpoint
-  — the agent passes **no MCP auth token**; the sandbox proxy injects it. (An
-  *admin* agent that must call the global admin `/mcp` with its own
-  **project-admin API token** is the exception — that needs extra wiring; see
-  `rbac.md`.)
+  — the agent passes **no MCP auth token**; the sandbox proxy injects it. (To
+  give a managed agent project-admin power — an **"Odin"** — you don't touch its
+  env or this URL: attach a **self-reference `/mcp` connector** with a
+  project-admin token as its policy-binding credential, and the platform
+  dispatches that connector's admin tools as the token's principal. See
+  `playbooks.md` playbook 6 + `rbac.md`.)
 - Optional: `PRISM_DATA_DIR`/`PRISM_SKILLS_DIR`, `SLACK_BOT_TOKEN`/
   `SLACK_APP_TOKEN`, Langfuse/OTel vars.
 

@@ -87,22 +87,17 @@ the catalog hot-reloads on the next turn (no restart):
 Give it an admin persona (no code) with the agent's own tools: `rename_self`
 ("Lens Admin") + `update_soul`, or set `AGENT_NAME` at `create_sandbox` time.
 
-> **Scope, honestly.** A seeded Prism can *explain* the platform and do its
-> project-scoped work today, but a sandbox's default connection is the
-> **project-scoped** MCP endpoint with a **sandbox identity** — which exposes no
-> admin tools, and a sandbox principal is hard-capped at project **MEMBER**
-> regardless of team role. So a sandboxed Prism is **not** a project admin out of
-> the box, even with the skill.
->
-> The platform *does* now let an **API-token** principal on a team with project
-> **ADMIN** role administer that project over the **global `/mcp`** (policies,
-> credentials, sandboxes, bindings — shipped in NEXUS-96). But turning a
-> **managed** Prism into that admin agent still needs prism-agent work: run it on
-> a **project-admin API token** instead of the sandbox identity, and point it at
-> the **global** `/mcp` (not the default project-scoped endpoint). Until that
-> ships, your admin should be either a **coding agent signed in via OIDC** (top of
-> this README) or an **external agent** given a project-admin API token — both
-> have the admin surface today.
+> **Making a seeded Prism a project admin ("Odin").** A sandbox's default
+> identity is capped at project **MEMBER**, so a seeded Prism can explain the
+> platform and do project-scoped work but isn't an admin out of the box. To make
+> it one, attach a **self-reference `/mcp` connector** with a **project-admin API
+> token** as its policy-binding credential: the platform dispatches that
+> connector's first-party tools as the **token's** principal, so Odin gets native
+> admin tools (`create_policy`, `create_sandbox`, …) while the token stays
+> server-side — **never in its env**. No prism-agent code, no env token. Odin's
+> authority is exactly the token's scope (scope it least-privilege;
+> `revoke_api_token` is the kill switch). Full runbook:
+> `lens-agents-admin/references/playbooks.md` playbook 6.
 
 ## Philosophy
 

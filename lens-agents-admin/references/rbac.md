@@ -27,15 +27,20 @@ tokens, manage teams, write org-level policies/bindings, project lifecycle
 (update/delete project, rotate keys), or reach any other project. If one of these
 is refused, hand it to a human org-admin session.
 
-## Sandbox principals are always MEMBER
+## Sandbox principals are MEMBER — unless elevated via a self-ref connector
 
-A **managed agent on its default sandbox identity** is capped at project
-**MEMBER** regardless of any team role — it can read/observe, manage
-clusters/AWS, and run in-sandbox shell tools, but **cannot** create policies,
-credentials, or sandboxes. In-sandbox self-administration is deliberately
-impossible. A per-project admin agent must therefore run as an **API-token**
-principal (not a sandbox principal), on a project-ADMIN team, pointed at the
-global `/mcp` — see `agents.md`.
+A managed agent on its **default sandbox identity** is capped at project
+**MEMBER** regardless of team role — read/observe, manage clusters/AWS, run
+in-sandbox shell tools, but **not** create policies/credentials/sandboxes.
+
+To make a sandbox a **project admin** ("Odin"), give it a **self-reference MCP
+connector** (`url: <publicUrl>/mcp`) with a **project-admin API token** attached
+as its policy-binding credential. The platform dispatches that connector's
+first-party tools as the **token's** api-token principal (not the sandbox), so
+Odin gets native admin tools while the token stays server-side — never in its
+env. Its authority is exactly the token's scope, so **scope the token
+least-privilege**; `revoke_api_token` is the kill switch. Full runbook:
+`playbooks.md` playbook 6 (and `agents.md`).
 
 ## Org creation: do it yourself on OIDC
 

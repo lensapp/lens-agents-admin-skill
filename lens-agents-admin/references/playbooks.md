@@ -56,6 +56,36 @@ For a plain REST+OpenAPI upstream use `create_http_connector` instead.)*
 2. `get_usage_cost_summary` / `get_usage_cost_timeseries` to watch spend.
 3. `query_audit_trail { source:"llm-proxy", result:"failure" }` to see budget rejections.
 
+## 6. Provision an "Odin" admin agent (a Prism that administers its projects)
+
+Give a managed Prism **project-admin** power by wiring it a project-admin API
+token through a **self-reference MCP connector**: the platform dispatches that
+connector's first-party tools as the token's principal, so Odin sees
+`create_policy`, `create_sandbox`, etc. as **native tools** — the token stays
+server-side (encrypted), **never in Odin's env**. Needs an admin who can mint
+tokens + grant team access (OIDC org-admin). Ask **which project(s)** Odin manages.
+
+1. For each managed project, ensure a team with **project-ADMIN** role:
+   `create_team { orgId, name }` → `set_team_project_access { teamId, projectId, role:"ADMIN" }`. *(tenancy.md)*
+2. `create_api_token { orgId, name:"odin-<scope>" }` → capture the raw token **once**.
+   **Scope it least-privilege** — admin on only the projects Odin should manage
+   (Odin's authority *is* this token's scope). *(tenancy.md)*
+3. `add_team_member { teamId, memberType:"AGENT", apiTokenId:"<id>" }` for each
+   managed project's team → the token is now project-admin there.
+4. Pick a **home project** for Odin's sandbox; register the self-reference connector:
+   `create_mcp_server { projectId:<home>, name:"odin-admin", url:"<publicUrl>/mcp", transport:"streamable-http" }`. *(mcp-connectors.md — this points at the platform's own /mcp.)*
+5. `create_mcp_server_credential { serverId, authType:"static", value:"<token>" }` —
+   stores the token encrypted, server-side.
+6. `create_policy { projectId:<home>, managedInference:{enabled:true, provider:"..."}, connectors:[{ connectorId:"<odin-admin>", allowedTools:[<admin tools>], credentialId:"<cred>" }] }`
+   → `create_policy_binding`. The binding's `credentialId` is what elevates the
+   connector's calls to the token's principal. *(policies.md)*
+7. `create_sandbox { projectId:<home>, name:"odin", image:"ghcr.io/lensapp/prism-agent:latest", command:"exec ./start.sh", env:{ LLM_PROVIDER:"...", NEXUS_API_URL:"..." }, volumes:[{mountPath:"/data"}], exposedPorts:[{name:"chat",port:3003,auth:"public"}], policies:["<homePolicyId>"] }`; poll `get_sandbox` for the chat URL. *(agents.md)*
+8. Seed the skill so Odin knows it's an admin: drop this bundle into
+   `/data/skills/lens-agents-admin/` — `shell_exec` `npx skills add https://github.com/lensapp/lens-agents-admin-skill/tree/main/lens-agents-admin -g -a claude-code --copy` (or a curl+untar); **not** `shell_write_file` (workspace-bounded). Give it an admin persona via `rename_self`/`update_soul` or `AGENT_NAME`. *(agents.md)*
+9. **Wrap up:** hand the user Odin's chat URL + the platform web UI; state its
+   scope (**exactly its token's projects** — project-admin, never org-admin) and
+   the kill switch (`revoke_api_token` disables it immediately).
+
 ## After any change
 
 Tell the user what to verify in the **admin UI** (the new policy/binding, the
