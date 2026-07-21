@@ -17,7 +17,7 @@ connect to the global `/mcp`), then continue with playbook 1 below.
 2. `create_project { orgId, name: "demo", displayName: "Demo" }` → note `projectId`. *(tenancy.md)*
 3. `create_policy { projectId, name: "starter", managedInference: { enabled: true, provider: "bedrock" } }` → note `policyId`. *(policies.md — match the provider the platform was installed with: bedrock | azure | bedrock-mantle)*
 4. `create_policy_binding { projectId, name: "starter-sandboxes", policyIds: ["<policyId>"], subjects: [{ kind: "all_sandboxes" }] }`. *(policies.md)*
-5. `create_sandbox { projectId, name: "prism-demo", image: "ghcr.io/lensapp/prism-agent:latest", command: "exec ./start.sh", env: {...}, volumes: [{mountPath:"/data"}], exposedPorts: [{name:"chat",port:3003,auth:"public"}], policies: ["<policyId>"] }`. *(agents.md)*
+5. `create_sandbox { projectId, name: "prism-demo", image: "ghcr.io/lensapp/prism-agent:latest", command: "exec ./start.sh", cpu: "1", memory: "2Gi", env: {...}, volumes: [{mountPath:"/data"}], exposedPorts: [{name:"chat",port:3003,auth:"public"}], policies: ["<policyId>"] }`. *(agents.md — `cpu`/`memory` required, ≤ the SANDBOX_CPU/SANDBOX_MEMORY ceiling)*
 6. Poll `get_sandbox` until `state=running` and `exposedPorts[0].url` is set.
 7. **Wrap up — always end an install/onboard with a plain-language summary.** Tell the user:
    - **What you installed:** the Lens Agents platform + a running **Prism** agent (its first managed agent).
@@ -30,7 +30,7 @@ connect to the global `/mcp`), then continue with playbook 1 below.
 2. Write a policy that grants the cluster + needed egress + inference:
    `create_policy { projectId, name: "sre", networkDefaultVerdict: "deny", allowedDomains: [...], integrations: [{type:"kubernetes",name:"prod-eks"}], managedInference: {enabled:true, provider:"..."} }`. *(policies.md)*
 3. `create_policy_binding { ..., policyIds:["<policyId>"], subjects:[{kind:"all_sandboxes"}] }`.
-4. `create_sandbox { ..., policies:["<policyId>"] }`; wait for `running`. *(agents.md)*
+4. `create_sandbox { ..., cpu, memory, policies:["<policyId>"] }`; wait for `running`. *(agents.md — `cpu`/`memory` required)*
 5. Give it its first goal over chat / `shell_claude_code` (e.g. "watch prod-eks for failing pods and report"). *(agents.md)*
 
 ## 3. "Integrate with <system> over MCP"
@@ -79,7 +79,7 @@ tokens + grant team access (OIDC org-admin). Ask **which project(s)** Odin manag
 6. `create_policy { projectId:<home>, managedInference:{enabled:true, provider:"..."}, connectors:[{ connectorId:"<odin-admin>", allowedTools:[<admin tools>], credentialId:"<cred>" }] }`
    → `create_policy_binding`. The binding's `credentialId` is what makes the
    connector run its calls as the token's principal. *(policies.md)*
-7. `create_sandbox { projectId:<home>, name:"odin", image:"ghcr.io/lensapp/prism-agent:latest", command:"exec ./start.sh", env:{ LLM_PROVIDER:"...", NEXUS_API_URL:"..." }, volumes:[{mountPath:"/data"}], exposedPorts:[{name:"chat",port:3003,auth:"public"}], policies:["<homePolicyId>"] }`; poll `get_sandbox` for the chat URL. *(agents.md)*
+7. `create_sandbox { projectId:<home>, name:"odin", image:"ghcr.io/lensapp/prism-agent:latest", command:"exec ./start.sh", cpu:"1", memory:"2Gi", env:{ LLM_PROVIDER:"...", NEXUS_API_URL:"..." }, volumes:[{mountPath:"/data"}], exposedPorts:[{name:"chat",port:3003,auth:"public"}], policies:["<homePolicyId>"] }`; poll `get_sandbox` for the chat URL. *(agents.md — `cpu`/`memory` required)*
 8. Seed the skill so Odin knows it's an admin: drop this bundle into
    `/data/skills/lens-agents-admin/` — `shell_exec` `npx skills add https://github.com/lensapp/lens-agents-admin-skill/tree/main/lens-agents-admin -g -a claude-code --copy` (or a curl+untar); **not** `shell_write_file` (workspace-bounded). Give it an admin persona via `rename_self`/`update_soul` or `AGENT_NAME`. *(agents.md)*
 9. **Wrap up:** hand the user Odin's chat URL + the platform web UI; state its

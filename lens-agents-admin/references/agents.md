@@ -19,6 +19,10 @@ Semantics that bite:
 - **Caps: one exposed port, one persistent volume.** `exposedPorts[].auth`:
   `public` = openable without a platform session (handy for a trial chat UI);
   `private` = requires OIDC.
+- **`cpu` and `memory` are required** (K8s quantities, e.g. `cpu: "1"` / `"500m"`,
+  `memory: "2Gi"` / `"512Mi"`) and must **not exceed** the platform's
+  `SANDBOX_CPU` / `SANDBOX_MEMORY` ceilings (default `1` / `2Gi`). `update_sandbox`
+  can change them — that creates a new revision and restarts the sandbox.
 - Image must have `/bin/sh` + a writable CA bundle; `FROM scratch` / non-debug
   distroless are **unsupported** (see `gotchas.md`).
 - After create, **poll `get_sandbox`** until `state` is `running` and

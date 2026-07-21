@@ -162,7 +162,8 @@ Then run **playbook #1 "Onboard from zero"** (`playbooks.md`): `list_orgs`
 yourself**; you're OIDC-signed-in, so don't punt to the UI) → `create_project` →
 `create_policy` (with `managedInference.provider` matching the
 provider you installed) → `create_policy_binding` → `create_sandbox` (the Prism
-agent; set `LLM_PROVIDER` to the same provider) → poll `get_sandbox` for the
+agent; set `LLM_PROVIDER` to the same provider, and the now-**required**
+`cpu`/`memory`, e.g. `"1"`/`"2Gi"`) → poll `get_sandbox` for the
 chat URL. Hand the user **both** URLs: the platform web UI (`config.publicUrl`)
 and the Prism chat URL (`exposedPorts[0].url`). See `agents.md` for the exact
 `create_sandbox` payload.
