@@ -91,8 +91,8 @@ org admin has **full** control (incl. org-scoped ops); an **API token** is never
 an org admin but administers any **project** its team holds **ADMIN** role on
 (policies, credentials, sandboxes, bindings). A default **sandbox** identity is
 capped at MEMBER, but you can make a sandbox agent a project admin ("Odin") by
-elevating it via a self-ref connector (see `references/rbac.md`). On an OIDC
-session you can also
+giving it a self-`/mcp` connector with a project-admin token credential (see
+`references/rbac.md`). On an OIDC session you can also
 **create the org itself** (`create_org`): during onboarding, if `list_orgs` is
 empty, **ask the user for an org name and create it yourself** — don't send them
 to the UI. The only ops that always need the *human's* own session are accepting

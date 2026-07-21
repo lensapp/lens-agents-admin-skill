@@ -27,7 +27,7 @@ tokens, manage teams, write org-level policies/bindings, project lifecycle
 (update/delete project, rotate keys), or reach any other project. If one of these
 is refused, hand it to a human org-admin session.
 
-## Sandbox principals are MEMBER — unless elevated via a self-ref connector
+## Sandbox principals are MEMBER — until you give them a self-ref connector credential
 
 A managed agent on its **default sandbox identity** is capped at project
 **MEMBER** regardless of team role — read/observe, manage clusters/AWS, run

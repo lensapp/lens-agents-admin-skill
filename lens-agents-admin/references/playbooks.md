@@ -77,8 +77,8 @@ tokens + grant team access (OIDC org-admin). Ask **which project(s)** Odin manag
 5. `create_mcp_server_credential { serverId, authType:"static", value:"<token>" }` —
    stores the token encrypted, server-side.
 6. `create_policy { projectId:<home>, managedInference:{enabled:true, provider:"..."}, connectors:[{ connectorId:"<odin-admin>", allowedTools:[<admin tools>], credentialId:"<cred>" }] }`
-   → `create_policy_binding`. The binding's `credentialId` is what elevates the
-   connector's calls to the token's principal. *(policies.md)*
+   → `create_policy_binding`. The binding's `credentialId` is what makes the
+   connector run its calls as the token's principal. *(policies.md)*
 7. `create_sandbox { projectId:<home>, name:"odin", image:"ghcr.io/lensapp/prism-agent:latest", command:"exec ./start.sh", env:{ LLM_PROVIDER:"...", NEXUS_API_URL:"..." }, volumes:[{mountPath:"/data"}], exposedPorts:[{name:"chat",port:3003,auth:"public"}], policies:["<homePolicyId>"] }`; poll `get_sandbox` for the chat URL. *(agents.md)*
 8. Seed the skill so Odin knows it's an admin: drop this bundle into
    `/data/skills/lens-agents-admin/` — `shell_exec` `npx skills add https://github.com/lensapp/lens-agents-admin-skill/tree/main/lens-agents-admin -g -a claude-code --copy` (or a curl+untar); **not** `shell_write_file` (workspace-bounded). Give it an admin persona via `rename_self`/`update_soul` or `AGENT_NAME`. *(agents.md)*
