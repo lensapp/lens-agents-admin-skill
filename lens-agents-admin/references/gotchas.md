@@ -38,6 +38,7 @@ Know which way each guard fails before you rely on it:
 - **`OPENAI_BASE_URL` must end in `/v1`** or managed GPT calls 404 (see `inference.md`).
 - **Direct provider egress is unmetered** — keep provider hosts denied (see `inference.md`).
 - **Token revocation doesn't kill live sessions** — stop the sandbox for immediate cutoff; otherwise the 30-min idle bounds the window.
+- **The platform `shell_*` tools run as the *caller*, in a fresh sandbox — not inside a target agent's container.** So you can't use them to seed a skill into another agent's `/data` or drive its runtime. To seed/drive a managed agent, go through *its own* chat UI / WS (e.g. ask it to install the skill from its repo link), or pre-seed the `/data` volume at create time.
 - **Managed inference is opt-in** — an empty policy egress-denies but leaves inference OFF; the agent won't answer until a policy enables it.
 - Provider must match across **install + policy + sandbox `LLM_PROVIDER`** or the agent won't answer.
 

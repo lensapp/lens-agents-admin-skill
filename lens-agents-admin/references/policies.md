@@ -60,3 +60,34 @@ multiple bindings apply to the same subject.
 them into separate bindings. For a managed agent (a sandbox), bind to
 `all_sandboxes` (or a sandbox-scoped policy). `create_org_policy_binding`
 forms a ceiling; project bindings union under it but cannot broaden it.
+
+## Org ceilings — bounding a project (and its project-admin agents)
+
+Ceilings clip **per axis**: an org binding on `all_sandboxes` caps every
+**sandbox** in the org; an org binding on `everyone`/`api_token` caps **people/
+tokens**. A project binding is only clipped by the ceiling on *its own* axis — so
+to bound what a project's sandboxes may do, you need an **`all_sandboxes` org
+ceiling**.
+
+Clipping is restriction-only and happens **at resolve time**, not at save:
+
+- Egress domains not covered by the ceiling's allowlist are **dropped**; managed
+  inference is **AND-gated** (the sandbox keeps it only if the ceiling also grants
+  it); if the ceiling lists connectors, connectors it doesn't list are **dropped**.
+  A credential aimed at a forbidden domain is neutralized because its domain is clipped.
+- **Per-axis carve-out:** a ceiling only caps an axis it actually populates. A
+  ceiling that lists *no* connectors leaves the connector axis **uncapped** (so a
+  domains-only ceiling doesn't silently strip every sandbox's connectors); likewise
+  a default-deny ceiling with *no* domain entries doesn't restrict domains. To cap
+  the connector axis, give the ceiling its own `connectors:[…]` allow-list.
+- A project binding that asks for more than the ceiling allows is **accepted but
+  clipped** — inspect with `list_policy_binding_drift` (per-binding) and
+  `get_sandbox_network_clip` (per-sandbox: blocked domains, `managedInferenceBlocked`,
+  `blockedConnectors`).
+
+**Why this matters for admin agents ("Odin"):** a project-admin agent can rewrite
+its project's policies/bindings and launch sandboxes, but an org ceiling still
+caps the result, and the agent **cannot edit the ceiling** — `create_org_policy`/
+`create_org_policy_binding` require an OIDC org-admin, and an API token is never
+one. Set the ceiling before handing out project-admin power. *(rbac.md, playbooks.md
+playbook 6.)*
