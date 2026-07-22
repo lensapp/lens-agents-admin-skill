@@ -49,10 +49,10 @@ provider. Image `ghcr.io/lensapp/prism-agent:latest`, command `exec ./start.sh`,
   not fallbacks for each other. `NEXUS_MCP_URL` is the **project-scoped** endpoint
   — the agent passes **no MCP auth token**; the sandbox proxy injects it. (To
   give a managed agent project-admin power — an **"Odin"** — you don't touch its
-  env or this URL: attach a **self-reference `/mcp` connector** with a
-  project-admin token as its policy-binding credential, and the platform
-  dispatches that connector's admin tools as the token's principal. See
-  `playbooks.md` playbook 6 + `rbac.md`.)
+  env or this URL: attach a project-admin token as a **credential on the project's
+  built-in `nexus-api` connector** and reference it from the policy's connector
+  grant (`connectors[].credentialId`); the platform dispatches that connector's
+  admin tools as the token's principal. See `playbooks.md` playbook 6 + `rbac.md`.)
 - Optional: `PRISM_DATA_DIR`/`PRISM_SKILLS_DIR`, `SLACK_BOT_TOKEN`/
   `SLACK_APP_TOKEN`, Langfuse/OTel vars.
 
@@ -95,13 +95,25 @@ Capabilities to know when configuring an agent:
 
 ## Seeding a skill (e.g. this one) into a spawned agent — no code, no rebuild
 Skills load from `<DATA>/skills` (=`/data/skills`) and hot-reload on directory
-mtime. Drop `lens-agents-admin/SKILL.md` (+ `references/`) there — pre-seed the
-`/data` volume at create time, or write it in at runtime with the agent's shell
-tools (`shell_write_file`/`shell_exec` into `$PRISM_DATA_DIR/skills`), or
-`npx skills add <source> --copy`. Picked up on the next turn, no restart. (A
-`SKILL.md` that is itself a symlink is skipped.)
+mtime. Get `lens-agents-admin/SKILL.md` (+ `references/`) there one of two ways:
+- **Pre-seed** the `/data` volume at create time (you own the volume then).
+- **Ask the agent to install it itself** — the reliable runtime path. The platform
+  `shell_*` tools (`shell_exec`/`shell_write_file`/`shell_claude_code`) run in a
+  **fresh sandbox as the caller, not inside the target agent's container**, so you
+  can't write *its* `/data` with them. Instead talk to the agent over its chat and
+  ask it to install the skill from its repo link, e.g.
+  `https://github.com/lensapp/lens-agents-admin-skill` (via `npx skills add <source> --copy`
+  or a `git clone`/curl into `$PRISM_DATA_DIR/skills`). Add the egress its install
+  path needs to the agent's policy `allowedDomains` first (public repo — domains
+  only, no credential): `git clone`/tarball needs `github.com` + `codeload.github.com`
+  (and `raw.githubusercontent.com`); `npx skills add` additionally needs
+  `registry.npmjs.org`. Picked up on the next turn, no restart.
+
+(A `SKILL.md` that is itself a symlink is skipped.)
 
 ## Give it a first goal
-After launch, talk to the agent over its chat UI / WebSocket, or drive it with
-`shell_claude_code`, to hand it its first task (e.g. "you are the SRE agent for
-`prod-eks`; watch for failing pods and report").
+After launch, hand the agent its first task over **its own chat UI / WebSocket**
+(e.g. "you are the SRE agent for `prod-eks`; watch for failing pods and report").
+Note the platform `shell_*` tools won't do this — they run in a fresh sandbox as
+the caller, not inside the launched agent's container — so drive the agent through
+its chat, not through `shell_claude_code`.

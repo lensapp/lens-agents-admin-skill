@@ -31,7 +31,7 @@ connect to the global `/mcp`), then continue with playbook 1 below.
    `create_policy { projectId, name: "sre", networkDefaultVerdict: "deny", allowedDomains: [...], integrations: [{type:"kubernetes",name:"prod-eks"}], managedInference: {enabled:true, provider:"..."} }`. *(policies.md)*
 3. `create_policy_binding { ..., policyIds:["<policyId>"], subjects:[{kind:"all_sandboxes"}] }`.
 4. `create_sandbox { ..., cpu, memory, policies:["<policyId>"] }`; wait for `running`. *(agents.md — `cpu`/`memory` required)*
-5. Give it its first goal over chat / `shell_claude_code` (e.g. "watch prod-eks for failing pods and report"). *(agents.md)*
+5. Give it its first goal over **its own chat UI / WS** (e.g. "watch prod-eks for failing pods and report") — not the platform `shell_*` tools, which run in a fresh sandbox as the caller, not inside the agent's container. *(agents.md)*
 
 ## 3. "Integrate with <system> over MCP"
 
@@ -59,32 +59,65 @@ For a plain REST+OpenAPI upstream use `create_http_connector` instead.)*
 ## 6. Provision an "Odin" admin agent (a Prism that administers its projects)
 
 Give a managed Prism **project-admin** power by wiring it a project-admin API
-token through a **self-reference MCP connector**: the platform dispatches that
-connector's first-party tools as the token's principal, so Odin sees
-`create_policy`, `create_sandbox`, etc. as **native tools** — the token stays
+token through the project's built-in **`nexus-api` connector**: the platform
+dispatches that connector's first-party tools as the token's principal, so Odin
+sees `create_policy`, `create_sandbox`, etc. as **native tools** — the token stays
 server-side (encrypted), **never in Odin's env**. Needs an admin who can mint
 tokens + grant team access (OIDC org-admin). Ask **which project(s)** Odin manages.
 
-1. For each managed project, ensure a team with **project-ADMIN** role:
-   `create_team { orgId, name }` → `set_team_project_access { teamId, projectId, role:"ADMIN" }`. *(tenancy.md)*
+> **Set an org ceiling first (highly recommended).** A project-admin agent can
+> write its project's policies/bindings and launch sandboxes, so without a ceiling
+> it could grant *its project's sandboxes* broad egress, managed inference, or
+> connectors. Cap that with an **org `all_sandboxes` ceiling**:
+> `create_org_policy { orgId, name:"org-ceiling", networkDefaultVerdict:"deny", allowedDomains:[…], managedInference:{enabled:true, provider:"…"} }`
+> → `create_org_policy_binding { orgId, policyIds:["<ceilingId>"], subjects:[{kind:"all_sandboxes"}] }`.
+> The ceiling is **restriction-only** — every project binding is clipped against
+> it at runtime (uncovered egress domains dropped, managed inference AND-gated; a
+> credential to a forbidden domain is neutralized because its domain is clipped).
+> **Per-axis carve-out:** the ceiling only caps an axis it actually populates — the
+> example above (domains + inference, no connectors) caps egress and inference but
+> leaves the **connector** axis uncapped; add a `connectors:[…]` allow-list to the
+> ceiling if you also need to bound which connectors project sandboxes may use.
+> (Likewise a default-deny ceiling with *no* domain entries wouldn't restrict
+> domains — so keep `allowedDomains` non-empty as above.) Odin **cannot raise or
+> remove the ceiling**: org policy/binding writes require an OIDC org-admin, and an
+> API token is never one. Use `list_policy_binding_drift` and
+> `get_sandbox_network_clip` to see what the ceiling clipped. *(policies.md — note
+> the two axes: `all_sandboxes` caps sandboxes, `everyone`/`api_token` caps people.)*
+
+1. For each managed project, create a **dedicated** least-privilege team with
+   **project-ADMIN** role — do **not** elevate an existing shared team (it may carry
+   many users + throwaway agent tokens you'd be making project admins):
+   `create_team { orgId, name:"<scope>-admins" }` → `set_team_project_access { teamId, projectId, role:"ADMIN" }`. *(tenancy.md)*
 2. `create_api_token { orgId, name:"odin-<scope>" }` → capture the raw token **once**.
    **Scope it least-privilege** — admin on only the projects Odin should manage
    (Odin's authority *is* this token's scope). *(tenancy.md)*
 3. `add_team_member { teamId, memberType:"AGENT", apiTokenId:"<id>" }` for each
    managed project's team → the token is now project-admin there.
-4. Pick a **home project** for Odin's sandbox; register the self-reference connector:
-   `create_mcp_server { projectId:<home>, name:"odin-admin", url:"<publicUrl>/mcp", transport:"streamable-http" }`. *(mcp-connectors.md — this points at the platform's own /mcp.)*
-5. `create_mcp_server_credential { serverId, authType:"static", value:"<token>" }` —
+4. Pick a **home project** for Odin's sandbox. **Don't create a connector** — use
+   the project's reserved **`nexus-api`** system connector (it already points at the
+   platform's own `/mcp`): `list_mcp_servers { projectId:<home> }` → grab the
+   `nexus-api` server id. *(mcp-connectors.md — `create_mcp_server` refuses to shadow it.)*
+5. `create_mcp_server_credential { projectId:<home>, serverId:"<nexus-api id>", name:"odin-<scope>-token", authType:"static", staticValue:"<token>" }` —
    stores the token encrypted, server-side.
-6. `create_policy { projectId:<home>, managedInference:{enabled:true, provider:"..."}, connectors:[{ connectorId:"<odin-admin>", allowedTools:[<admin tools>], credentialId:"<cred>" }] }`
-   → `create_policy_binding`. The binding's `credentialId` is what makes the
-   connector run its calls as the token's principal. *(policies.md)*
-7. `create_sandbox { projectId:<home>, name:"odin", image:"ghcr.io/lensapp/prism-agent:latest", command:"exec ./start.sh", cpu:"1", memory:"2Gi", env:{ LLM_PROVIDER:"...", NEXUS_API_URL:"..." }, volumes:[{mountPath:"/data"}], exposedPorts:[{name:"chat",port:3003,auth:"public"}], policies:["<homePolicyId>"] }`; poll `get_sandbox` for the chat URL. *(agents.md — `cpu`/`memory` required)*
-8. Seed the skill so Odin knows it's an admin: drop this bundle into
-   `/data/skills/lens-agents-admin/` — `shell_exec` `npx skills add https://github.com/lensapp/lens-agents-admin-skill/tree/main/lens-agents-admin -g -a claude-code --copy` (or a curl+untar); **not** `shell_write_file` (workspace-bounded). Give it an admin persona via `rename_self`/`update_soul` or `AGENT_NAME`. *(agents.md)*
+6. `create_policy { projectId:<home>, name:"odin-admin", managedInference:{enabled:true, provider:"..."}, connectors:[{ connectorId:"<nexus-api id>", allowedTools:[<admin tools>], credentialId:"<cred id>" }] }`.
+   The connector grant's **`credentialId`** is what makes those first-party tools
+   run as the token's principal. *(policies.md)*
+7. `create_sandbox { projectId:<home>, name:"odin", image:"ghcr.io/lensapp/prism-agent:latest", command:"exec ./start.sh", cpu:"1", memory:"2Gi", env:{ LLM_PROVIDER:"..." }, volumes:[{mountPath:"/data"}], exposedPorts:[{name:"web",port:3003,auth:"private"}], policies:["<homePolicyId>"] }`; poll `get_sandbox` for the chat URL. Attaching the policy **inline** here scopes admin to *this* sandbox — don't bind it `all_sandboxes` or you elevate every sandbox in the project. Prefer `auth:"private"` (requires a platform session to reach the chat) for a project-admin agent; `"public"` only for a throwaway trial. *(agents.md — `cpu`/`memory` required)*
+8. Seed the admin skill so Odin knows it's an admin — the `shell_*` tools run in a
+   *fresh* sandbox as **you**, not inside Odin's container, so you can't write its
+   `/data` from here. Instead **ask Odin over its chat to install the skill itself**,
+   giving it the repo link `https://github.com/lensapp/lens-agents-admin-skill`.
+   First add the egress its install path needs to Odin's policy `allowedDomains`
+   (public repo — just domains, no credential, so this is *not* the playbook-4
+   secret recipe): a `git clone`/tarball fetch needs `github.com` + `codeload.github.com`
+   (and `raw.githubusercontent.com`); `npx skills add …` additionally needs
+   `registry.npmjs.org`. Then give it an admin persona via `rename_self`/`update_soul`
+   or `AGENT_NAME`. *(agents.md, policies.md)*
 9. **Wrap up:** hand the user Odin's chat URL + the platform web UI; state its
-   scope (**exactly its token's projects** — project-admin, never org-admin) and
-   the kill switch (`revoke_api_token` disables it immediately).
+   scope (**exactly its token's projects** — project-admin, never org-admin), that
+   an org ceiling bounds what it can grant, and the kill switch (`revoke_api_token`
+   disables it immediately; follow with `stop_sandbox` to cut a live session).
 
 ## After any change
 

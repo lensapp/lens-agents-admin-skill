@@ -13,9 +13,17 @@ Tools: `list_mcp_servers`, `get_mcp_server`, `create_mcp_server`,
 `update_mcp_server`, `delete_mcp_server`, `sync_mcp_server_tools`
 ((re)discover the upstream tool catalog after it changes).
 
-The reserved server name **`nexus-api`** is the platform's own self-reference
-(used so first-party tools can reach project sandboxes) — `create_mcp_server`
-refuses to shadow it.
+The reserved server name **`nexus-api`** is the platform's own self-reference to
+`<publicUrl>/mcp` (used so first-party tools can reach project sandboxes) —
+`create_mcp_server` refuses to shadow it, but it's already there in every project
+(`list_mcp_servers` shows it). You **don't create a self-reference connector** — to
+give a managed agent project-admin power (the **"Odin"** pattern), attach a
+project-admin API token as a **credential on `nexus-api`**
+(`create_mcp_server_credential { serverId:<nexus-api>, authType:"static", … }`) and
+reference that credential from a policy connector grant (`connectors[].credentialId`).
+The platform then dispatches `nexus-api`'s first-party admin tools as the **token's**
+principal, so the agent sees `create_policy`, `create_sandbox`, etc. as native tools
+while the token stays server-side. See `playbooks.md` playbook 6 + `rbac.md`.
 
 ## MCP server credentials
 
