@@ -39,6 +39,7 @@ Know which way each guard fails before you rely on it:
 - **Direct provider egress is unmetered** — keep provider hosts denied (see `inference.md`).
 - **Token revocation doesn't kill live sessions** — stop the sandbox for immediate cutoff; otherwise the 30-min idle bounds the window.
 - **The platform `shell_*` tools run as the *caller*, in a fresh sandbox — not inside a target agent's container.** So you can't use them to seed a skill into another agent's `/data` or drive its runtime. To seed/drive a managed agent, go through *its own* chat UI / WS (e.g. ask it to install the skill from its repo link), or pre-seed the `/data` volume at create time.
+- **A Slack bot-token credential only allows the methods you whitelist — and the adapter's set ≠ the agent's set.** The Bolt adapter calls a fixed handful (auth.test, chat.postMessage/update, conversations.info/replies, reactions.add, users.info, files.*). If the *agent itself* calls other Slack methods — e.g. it enumerates channels/DMs via `conversations.list` / `users.conversations` — those must be in the credential's injection rules too, or the proxy 403s them. Easy to miss precisely because the adapter never calls them, so a "working" Slack connection still fails the agent's own API use (see `playbooks.md` playbook 7).
 - **Managed inference is opt-in** — an empty policy egress-denies but leaves inference OFF; the agent won't answer until a policy enables it.
 - Provider must match across **install + policy + sandbox `LLM_PROVIDER`** or the agent won't answer.
 

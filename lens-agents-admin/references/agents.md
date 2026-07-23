@@ -54,7 +54,8 @@ provider. Image `ghcr.io/lensapp/prism-agent:latest`, command `exec ./start.sh`,
   grant (`connectors[].credentialId`); the platform dispatches that connector's
   admin tools as the token's principal. See `playbooks.md` playbook 6 + `rbac.md`.)
 - Optional: `PRISM_DATA_DIR`/`PRISM_SKILLS_DIR`, `SLACK_BOT_TOKEN`/
-  `SLACK_APP_TOKEN`, Langfuse/OTel vars.
+  `SLACK_APP_TOKEN` (don't set these inline — inject them via a Slack policy;
+  see `playbooks.md` playbook 7), Langfuse/OTel vars.
 
 ## Configure the running agent (the agent's own tools)
 A managed agent's behavior is **seven workspace files**, all loaded every
@@ -91,7 +92,9 @@ Capabilities to know when configuring an agent:
   (own token/workspace/memory/audit), **flat hierarchy** (no sub-subagents),
   same-team.
 - **Channels** — WebSocket web chat + Slack (personal-DM or team-channel per
-  agent). Slack is connected once at org level with a fixed set of bot scopes.
+  agent). For a managed agent you connect Slack **per agent** by injecting its
+  own `SLACK_BOT_TOKEN`/`SLACK_APP_TOKEN` via a Slack policy (Socket Mode, two
+  tokens) — full runbook in `playbooks.md` playbook 7.
 
 ## Seeding a skill (e.g. this one) into a spawned agent — no code, no rebuild
 Skills load from `<DATA>/skills` (=`/data/skills`) and hot-reload on directory

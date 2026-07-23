@@ -24,7 +24,12 @@ Non-obvious semantics, by field:
 - **`credentials[]`** references a credential by name (see `credentials.md`).
   It only takes effect if the same domain is also allowed in the network
   config — the credential ref and the `allowedDomains` entry are both
-  required, one without the other does nothing.
+  required, one without the other does nothing. Add **`envVarKey`** to also
+  inject the credential's value into the sandbox as that env var (e.g.
+  `{credentialName:"x-slack-xoxb", envVarKey:"SLACK_BOT_TOKEN"}`) — the agent
+  reads the env var while the value stays a proxy-rewritten sentinel, never the
+  raw secret. This is how env-token integrations like Slack are wired
+  (`playbooks.md` playbook 7).
 - **`integrations[]`** (kubernetes / aws-connection, see `connections.md`) is
   **not allowed on org-scoped policies** — project policies only.
 - **`managedInference`** — omitting the object leaves inference disabled. It
