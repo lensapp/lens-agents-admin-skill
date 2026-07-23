@@ -126,6 +126,7 @@ hot-load.
 | Set up managed inference / providers | `references/inference.md` |
 | Inject credentials; connect K8s/AWS/GitHub | `references/credentials.md`, `references/connections.md` |
 | Wire upstream MCP servers | `references/mcp-connectors.md` |
+| Connect an agent to Slack (two tokens, Socket Mode) | `references/playbooks.md`, `references/agents.md` |
 | Launch **and configure** a managed (Prism) agent | `references/agents.md` |
 | Orgs / teams / projects / tokens (+ how a token gets project-admin) | `references/tenancy.md` |
 | Spending, usage, audit | `references/governance.md` |

@@ -37,24 +37,16 @@ provider. Image `ghcr.io/lensapp/prism-agent:latest`, command `exec ./start.sh`,
 `/data` volume, chat port `3003`.
 
 - **Identity (first boot only — ignored on restarts of a reused `/data`):**
-  `AGENT_ID`, `AGENT_NAME` (default `Prism`), `TEAM_NAME`, `OWNER_USER_ID`.
+  `AGENT_ID`, `AGENT_NAME` (default `Prism`), `TEAM_NAME`.
 - **Provider:** `LLM_PROVIDER` = `bedrock` (default) or `azure` — **a typo
   throws at boot.** Must match the policy's `managedInference.provider` and the
   platform install.
-- **Managed inference via the platform (the normal managed case):** set `NEXUS_API_URL`
-  (+ optionally `PROJECT_ID`) and the sandbox needs **no local LLM key** — the
-  gateway injects it. Omit `NEXUS_API_URL` only for a *direct* agent that carries
-  real AWS/Azure creds.
-- `NEXUS_MCP_URL` and `NEXUS_API_URL` are **independent** (tools vs LLM proxy),
-  not fallbacks for each other. `NEXUS_MCP_URL` is the **project-scoped** endpoint
-  — the agent passes **no MCP auth token**; the sandbox proxy injects it. (To
-  give a managed agent project-admin power — an **"Odin"** — you don't touch its
-  env or this URL: attach a project-admin token as a **credential on the project's
-  built-in `nexus-api` connector** and reference it from the policy's connector
-  grant (`connectors[].credentialId`); the platform dispatches that connector's
-  admin tools as the token's principal. See `playbooks.md` playbook 6 + `rbac.md`.)
-- Optional: `PRISM_DATA_DIR`/`PRISM_SKILLS_DIR`, `SLACK_BOT_TOKEN`/
-  `SLACK_APP_TOKEN`, Langfuse/OTel vars.
+
+That's all you set. Everything else the agent needs at runtime — managed
+inference, MCP tools, credentials (incl. Slack tokens), and the platform
+connection URLs — comes from its **policy** and is injected by the platform; don't
+put it in `env`. (Slack tokens → `playbooks.md` playbook 7; project-admin "Odin" →
+`playbooks.md` playbook 6.)
 
 ## Configure the running agent (the agent's own tools)
 A managed agent's behavior is **seven workspace files**, all loaded every
@@ -91,7 +83,9 @@ Capabilities to know when configuring an agent:
   (own token/workspace/memory/audit), **flat hierarchy** (no sub-subagents),
   same-team.
 - **Channels** — WebSocket web chat + Slack (personal-DM or team-channel per
-  agent). Slack is connected once at org level with a fixed set of bot scopes.
+  agent). For a managed agent you connect Slack **per agent** by injecting its
+  own `SLACK_BOT_TOKEN`/`SLACK_APP_TOKEN` via a Slack policy (Socket Mode, two
+  tokens) — full runbook in `playbooks.md` playbook 7.
 
 ## Seeding a skill (e.g. this one) into a spawned agent — no code, no rebuild
 Skills load from `<DATA>/skills` (=`/data/skills`) and hot-reload on directory

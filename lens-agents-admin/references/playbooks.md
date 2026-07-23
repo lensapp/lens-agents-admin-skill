@@ -119,6 +119,67 @@ tokens + grant team access (OIDC org-admin). Ask **which project(s)** Odin manag
    an org ceiling bounds what it can grant, and the kill switch (`revoke_api_token`
    disables it immediately; follow with `stop_sandbox` to cut a live session).
 
+## 7. Connect an agent to Slack (two tokens, Socket Mode)
+
+Prism talks to Slack over **Socket Mode** with **two** tokens: a **bot token**
+(`xoxb-`, authenticates every Web API call) and an **app-level token** (`xapp-`,
+scope `connections:write`, opens the socket). You inject each as a platform
+credential (header rewrite on the wire) *and* map it to the env var Prism reads, so
+the real token never sits in the sandbox env. Ask the user for both tokens (or set
+placeholders and let them fill real values via the UI — the bot token is validated
+at boot, so it must be real before the restart in step 5).
+
+1. **In Slack** (`api.slack.com/apps`): create an app → **enable Socket Mode** →
+   create an **app-level token** with `connections:write` (this is the `xapp-`) →
+   add **bot scopes** `app_mentions:read`, `chat:write`, `channels:history`,
+   `groups:history`, `im:history`, `im:read`, `channels:read`, `groups:read`,
+   `users:read`, `reactions:write`, `files:read`, `files:write` → subscribe to bot
+   events `message.im`, `message.channels`, `message.groups`, `app_mention`,
+   `member_joined_channel`, `member_left_channel` → install to the workspace → copy
+   the **Bot User OAuth token** (`xoxb-`) and the app-level token (`xapp-`).
+   (Slack scope requirements shift; if a call is denied for a missing scope, grant it.)
+2. Bot-token credential — inject `Authorization: Bearer {value}` on the Slack hosts,
+   whitelisting the Web API methods (POST `/api/<method>`). Two groups:
+   - **Adapter core** (the Bolt runtime calls these): `auth.test`, `chat.postMessage`,
+     `chat.update`, `conversations.info`, `conversations.replies`, `reactions.add`,
+     `users.info`, `files.getUploadURLExternal`, `files.completeUploadExternal` — plus
+     the `files.slack.com` rules (`GET /files-pri/**` download, `POST /upload/**`).
+   - **Agent-initiated** (add only what the agent itself will call — the adapter does
+     **not** call these): `conversations.list`, `conversations.history`,
+     `conversations.members`, `conversations.open`, `users.conversations`, `users.list`,
+     `chat.postEphemeral`, `chat.delete`, `reactions.remove`, `team.info`, `views.open`,
+     `views.update`. (`bots.info` only if you set the optional `SLACK_EXPECTED_APP_ID`.)
+
+   `create_credential { projectId, name:"<agent>-slack-xoxb", value:"<xoxb-…>", injections:[ { domain:"slack.com", headerName:"Authorization", headerFormat:"Bearer {value}", rules:[ POST /api/auth.test, /api/chat.postMessage, /api/chat.update, /api/conversations.info, /api/conversations.replies, /api/reactions.add, /api/users.info, /api/files.getUploadURLExternal, /api/files.completeUploadExternal, …plus any agent-initiated methods above ] }, { domain:"files.slack.com", headerName:"Authorization", headerFormat:"Bearer {value}", rules:[ GET /files-pri/**, POST /upload/** ] } ] }`.
+   Least-privilege: grant only the groups the agent needs. If the agent enumerates
+   channels/DMs it needs `conversations.list`/`users.conversations` — easy to miss,
+   since the adapter never calls them (see `gotchas.md`). *(credentials.md)*
+3. App-token credential — one method:
+   `create_credential { projectId, name:"<agent>-slack-xapp", value:"<xapp-…>", injections:[ { domain:"slack.com", headerName:"Authorization", headerFormat:"Bearer {value}", rules:[ POST /api/apps.connections.open ] } ] }`. *(credentials.md)*
+4. Policy — map both creds to the env vars Prism reads and open Slack egress:
+   `create_policy { projectId, name:"<agent>-slack", credentials:[ {credentialName:"<agent>-slack-xoxb", envVarKey:"SLACK_BOT_TOKEN"}, {credentialName:"<agent>-slack-xapp", envVarKey:"SLACK_APP_TOKEN"} ], allowedDomains:[ {pattern:"slack.com", verdict:"allow", transport:"direct"}, {pattern:"*.slack.com", verdict:"allow", transport:"direct"} ] }`.
+   `slack.com` + `*.slack.com` covers the Web API, Socket Mode (`wss-*.slack.com`),
+   and `files.slack.com` — nothing else is needed. `managedInference` stays off here
+   (the agent's main policy provides it). *(policies.md)*
+5. Attach the policy **inline** to the agent's sandbox alongside its existing ones:
+   `update_sandbox { …, policies:[<existing…>, "<slackPolicyId>"] }`. Attaching is
+   metadata-only (no restart), and Prism reads `SLACK_*` **at boot** — so
+   `stop_sandbox` then `start_sandbox` to inject the tokens and connect. Make sure the
+   **real** bot token is set first: `auth.test` runs at config load and *throws* on a
+   bad token (the Socket Mode connect itself is fail-open). *(agents.md)*
+6. Verify with `query_audit_trail { source:"sandbox-proxy", actorId:"<sandboxId>" }` —
+   `POST slack.com/api/auth.test` **success** (bot token good), `POST
+   slack.com/api/apps.connections.open` **success** (app token good), and `GET
+   wss-primary.slack.com/link` **success** (socket open) mean it's connected. *(governance.md)*
+7. **Link a conversation** — a web-UI flow the *user* runs (the agent's Channels
+   page issues a 6-char code). **Personal mode** — DM the bot the code. **Team
+   mode** — `/invite` the bot to a channel and post the code there (one channel is
+   the ★ main channel for heartbeat alerts). The two modes are mutually exclusive.
+
+> Don't set `SLACK_SKIP_BOT_ID_CHECK` — it's an e2e-test flag that makes the agent
+> process other bots' messages. If an **org ceiling** is set (playbook 6), make sure
+> `slack.com`/`*.slack.com` are in its allowlist, or Slack egress gets clipped.
+
 ## After any change
 
 Tell the user what to verify in the **admin UI** (the new policy/binding, the
