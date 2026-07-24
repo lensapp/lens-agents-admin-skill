@@ -35,8 +35,9 @@ clips it (see `policies.md`).
 ## Sandbox principals are MEMBER — until you give them a project-admin token via `nexus-api`
 
 A managed agent on its **default sandbox identity** is capped at project
-**MEMBER** regardless of team role — read/observe, manage clusters/AWS, run
-in-sandbox shell tools, but **not** create policies/credentials/sandboxes.
+**MEMBER** regardless of team role — read/observe (**including its *own*
+spend/usage/limit-status over MCP, self-scoped — NEXUS-100**), manage clusters/AWS,
+run in-sandbox shell tools, but **not** create policies/credentials/sandboxes.
 
 To make a sandbox a **project admin** ("Odin"), attach a **project-admin API
 token** as a credential on the project's built-in **`nexus-api`** connector (the
