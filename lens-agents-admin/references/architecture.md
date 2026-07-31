@@ -5,14 +5,19 @@
   sandboxes, connectors, credentials, spending, audit, shell) **plus** the
   org-scoped upstream connector aggregator. **This is where you administer.**
 - **Project-scoped `/projects/:projectId/mcp`** — **only** that project's
-  upstream MCP connectors. **No first-party/admin tools.** Sandboxes are wired to
+  upstream MCP connectors, **plus three self-scoped spend/usage *read* tools** a
+  sandbox may call on its own budget — `get_usage_cost_summary`,
+  `get_usage_cost_timeseries`, `get_spending_limit_status` (NEXUS-100). **No other
+  first-party/admin tools**, and every spending-limit *mutation* stays off this
+  endpoint. Sandboxes are wired to
   this endpoint on purpose: a managed agent can reach its project's tool surface
   **without being able to drive its own sandbox over MCP** (prevents recursive
   `shell_exec`/self-administration loops). A sandbox token that tries another
   `projectId` in the path is rejected 403.
 
 Consequence: **an agent connected to the project endpoint will not see admin
-tools** — that's not a bug. Full administration requires the global `/mcp`.
+tools** (beyond the three self-scoped spend/usage reads above) — that's not a bug.
+Full administration requires the global `/mcp`.
 
 ## Four auth types (what each principal can do)
 `oidc | api-token | cluster-jwt | sandbox` (composite auth order on `/mcp`:
@@ -24,7 +29,10 @@ sandbox-token → api-token → OIDC).
   ops stay OIDC-only. See `rbac.md`.
 - **cluster-jwt** — the cluster relay identity (`lnsc_` prefix).
 - **sandbox** — a managed agent's identity; scoped to one project as **MEMBER**,
-  **never** org-admin. No first-party admin tool is even visible to it.
+  **never** org-admin. No first-party admin tool is visible to it **except three
+  self-scoped spend/usage reads** — `get_usage_cost_summary`,
+  `get_usage_cost_timeseries`, `get_spending_limit_status` — which return only its
+  own sandbox's data (NEXUS-100); every spending-limit *mutation* stays OIDC-only.
 
 **Sandbox-as-principal (the current model):** policies attach **directly to a
 sandbox at create time** (`create_sandbox` takes `policies: [...]`, a frozen

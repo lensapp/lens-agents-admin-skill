@@ -98,7 +98,9 @@ empty, **ask the user for an org name and create it yourself** — don't send th
 to the UI. The only ops that always need the *human's* own session are accepting
 personal invitations. **Admin tools require the global `/mcp` endpoint** — a
 sandboxed agent on its *default* project-scoped endpoint + sandbox identity sees
-**no** admin tools. Details in `references/rbac.md`.
+**no** admin tools (beyond three self-scoped spend/usage reads — it can watch its
+*own* budget without being made a project admin; see `references/governance.md`).
+Details in `references/rbac.md`.
 
 ## Connecting
 

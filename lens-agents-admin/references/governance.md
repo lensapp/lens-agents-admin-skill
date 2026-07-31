@@ -11,6 +11,17 @@ heartbeats skip gracefully instead of erroring.
 Tools: `list_spending_limits`, `get_spending_limit_status`,
 `set_spending_limit`, `remove_spending_limit`.
 
+**Visibility (NEXUS-100):** the three *read* tools — `get_usage_cost_summary`,
+`get_usage_cost_timeseries`, `get_spending_limit_status` — are visible to `oidc`,
+`api-token`, **and `sandbox`** principals; a sandbox call is **self-scoped** —
+clamped to its own sandboxId within its own project regardless of any supplied
+`actorType`/`actorId`/`projectId`/`orgId` (a spoofed org can't win; a foreign org
+is denied), and `get_spending_limit_status` returns org-level limits plus that
+sandbox's own row only. The **mutations** — `list_spending_limits`,
+`set_spending_limit`, `remove_spending_limit` — stay **OIDC-only** (not visible to
+`sandbox` or `api-token`). So a managed agent (e.g. Prism) can watch its own budget
+without being made a project admin.
+
 Limits form a **4-level stack** — org, user, agent, sandbox — and **the
 most-restrictive applicable limit wins**. `actorType: agent` targets an API
 token's id; `actorType: sandbox` targets one specific sandbox.
