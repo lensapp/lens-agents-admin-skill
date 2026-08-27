@@ -30,14 +30,14 @@ call. A policy's `managedInference.provider` selects the backend; the provider
   bearer-token auth. Available **only when** its token is set. Two surfaces off
   that one key — and **unlike the sibling two-surface backends, each surface
   reaches every vendor it resells**, not one model family: an Anthropic-SDK
-  agent can drive Gemini, an OpenAI-SDK agent can drive Claude. Spend is billed
-  on **the cost OpenRouter reports on each response**, not a rate-card token
-  price — so a model missing from the price table still meters. (**BYOK** meters
-  on upstream charge + fee where the response carries its upstream-cost figure;
-  where that figure is missing it falls back to table pricing, and the gap
-  returns.) Keep
-  `openrouter.ai` **denied**: one key reaching 60 vendors is the cheapest way for
-  an agent to spend money nothing meters.
+  agent can drive Gemini, an OpenAI-SDK agent can drive Claude.
+  - **Metering:** spend is billed on **the cost OpenRouter reports on each
+    response**, not a rate-card token price — so a model missing from the price
+    table still meters. **BYOK** meters on upstream charge + fee where the
+    response carries its upstream-cost figure; where that figure is missing it
+    falls back to table pricing, and the gap returns.
+  - **Egress:** keep `openrouter.ai` **denied**. One key reaching 60 vendors is
+    the cheapest way for an agent to spend money nothing meters.
 
 `GET /v1/inference/providers` reports the live set; the UI gates its picker on
 it. A policy can only select a provider the deployment actually has.

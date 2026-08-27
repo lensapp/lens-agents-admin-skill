@@ -84,27 +84,28 @@ Three shared flags: `encryption.key` (64 hex, at-rest encryption), `config.publi
 `sandboxIngress.host=localtest.me` (required for sandbox web UIs — `localtest.me`
 is public wildcard DNS resolving `*.localtest.me`→127.0.0.1).
 
-**AWS Bedrock (default):**
+**OpenRouter (fewest steps — one key, ~400 models):**
 ```bash
 helm install lens-agents oci://ghcr.io/lensapp/lens-agents \
   --set encryption.key="$(openssl rand -hex 32)" \
   --set config.publicUrl=http://localhost:3002 \
   --set sandboxIngress.host=localtest.me \
-  --set inference.bedrock.token="<bedrock-api-key>" \
+  --set inference.openrouter.token="<openrouter-api-key>" \
   --wait --timeout 10m
 ```
-
-**OpenRouter (fewest steps — one key, ~400 models):** same three shared flags, plus:
-```bash
-  --set inference.openrouter.token="<openrouter-api-key>"
-```
-- The key **is** the configuration; nothing else to set. Both wire formats ride
-  it, so a Claude-Code-shaped and an OpenAI-SDK-shaped agent both get a managed
-  endpoint, and either can drive any model it routes.
+- The key is all you need. Both wire formats ride it, so a Claude-Code-shaped
+  and an OpenAI-SDK-shaped agent both get a managed endpoint, and either can
+  drive any model it routes.
 - Optional `--set inference.openrouter.model="<vendor/model>"` seeds the
   sandbox's `ANTHROPIC_MODEL` (default `anthropic/claude-sonnet-5`). **Prism
   ignores it** — Prism reads `OPENROUTER_MODEL_ID` (default
   `openai/gpt-5.6-sol`) and keeps memory embeddings **off** on this backend.
+
+**AWS Bedrock (needs a key, or an IAM role on EKS):** same three shared flags, plus:
+```bash
+  --set inference.bedrock.token="<bedrock-api-key>"
+```
+- No token and no IAM role behind it = a clean install whose every call fails.
 
 **OpenAI (GPT only):** same three shared flags, plus:
 ```bash

@@ -35,13 +35,14 @@ Know which way each guard fails before you rely on it:
 - **A sandbox on the project `/mcp` sees no admin tools** — by design (see `architecture.md`), **except three self-scoped spend/usage reads** (`get_usage_cost_summary`, `get_usage_cost_timeseries`, `get_spending_limit_status`), which return only its own budget (NEXUS-100). Administer via the global `/mcp`.
 - **`allowedTools: []` on a connector ref = deny all**, not allow all.
 - **`piiMasking.failOpen: false` = fail-closed** (blocks) — the flag name inverts easily.
+- **Realtime voice is served UNMASKED** — a policy carrying `piiMasking` is simply not applied to an OpenAI realtime session; the only trace is `piiMaskingSkipped` on the audit records. Set masking, enable voice, and the audio leg is unmasked while the HTTP leg fails closed (see `inference.md`).
 - **`OPENAI_BASE_URL` must end in `/v1`** or managed GPT calls 404 (see `inference.md`).
 - **Direct provider egress is unmetered** — keep provider hosts denied (see `inference.md`).
 - **Token revocation doesn't kill live sessions** — stop the sandbox for immediate cutoff; otherwise the 30-min idle bounds the window.
 - **The platform `shell_*` tools run as the *caller*, in a fresh sandbox — not inside a target agent's container.** So you can't use them to seed a skill into another agent's `/data` or drive its runtime. To seed/drive a managed agent, go through *its own* chat UI / WS (e.g. ask it to install the skill from its repo link), or pre-seed the `/data` volume at create time.
 - **A Slack bot-token credential only allows the methods you whitelist — and the adapter's set ≠ the agent's set.** The Bolt adapter calls a fixed handful (auth.test, chat.postMessage/update, conversations.info/replies, reactions.add, users.info, files.*). If the *agent itself* calls other Slack methods — e.g. it enumerates channels/DMs via `conversations.list` / `users.conversations` — those must be in the credential's injection rules too, or the proxy 403s them. Easy to miss precisely because the adapter never calls them, so a "working" Slack connection still fails the agent's own API use (see `playbooks.md` playbook 7).
 - **Managed inference is opt-in** — an empty policy egress-denies but leaves inference OFF; the agent won't answer until a policy enables it.
-- Provider must match across **install + policy + sandbox `LLM_PROVIDER`** or the agent won't answer.
+- Provider must match across **install + policy + sandbox `LLM_PROVIDER`** or the agent won't answer — and **an unrecognized `LLM_PROVIDER` doesn't throw, it silently falls back to `bedrock`**, so a typo presents as a mismatch, not a config error (see `agents.md`).
 
 ## Doc inconsistencies to treat carefully
 - Provider list: treat the models/inference docs as authoritative — **Bedrock, Azure (Foundry), Bedrock Mantle, OpenAI, OpenRouter**. Older pages say "Anthropic and AWS Bedrock only," or list only the first three.
