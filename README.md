@@ -121,7 +121,7 @@ lens-agents-admin/
   references/
   concepts.md         # the WHY — governance model, Mode 1/2, autonomy-vs-policy, honest limitations
   architecture.md     # internals: two MCP endpoints, sandbox-as-principal, the two proxies, network policy, TTLs
-  install-local.md    # stand up the whole platform on minikube (Bedrock/Azure), then onboard
+  install-local.md    # stand up the whole platform on minikube (any of the five inference backends), then onboard
   rbac.md             # who administers (OIDC org-admin / project-admin token / sandbox) — read before acting
   tenancy.md          # orgs, teams, projects, membership, API tokens
   policies.md         # policy + binding semantics (ceiling/clip/drift, people-vs-sandbox axes)

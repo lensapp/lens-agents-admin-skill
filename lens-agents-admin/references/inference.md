@@ -6,7 +6,7 @@ call. A policy's `managedInference.provider` selects the backend; the provider
 **credential** is set at **platform install time** (Helm `inference.*` /
 `NEXUS_*` env), not over MCP.
 
-## Three backends (and availability)
+## Five backends (and availability)
 - **`bedrock`** — AWS Bedrock. **Always available** (falls back to the AWS
   default credential chain if no token is set).
 - **`azure`** — Claude on **Microsoft Foundry** (Anthropic Messages API,
@@ -16,6 +16,28 @@ call. A policy's `managedInference.provider` selects the backend; the provider
 - **`bedrock-mantle`** — an AWS OpenAI/Anthropic-**compatible** endpoint that
   serves Claude **and** GPT off **one Bedrock key**. Available **whenever a
   Bedrock token is set**. Derives its host from the region.
+- **`openai`** — OpenAI, bearer-token auth. Available **only when** its token is
+  set. **GPT only** — OpenAI hosts no Claude, so a sandbox here gets
+  `OPENAI_BASE_URL` and **no managed Anthropic endpoint**. POSTs are allowlisted
+  to the three paths whose spend can be metered (`/v1/chat/completions`,
+  `/v1/responses`, `/v1/embeddings`) — any other POST **404s**; `GET /v1/models`
+  is served too, so model pickers work. Realtime voice rides a separate
+  WebSocket route: served **unmasked** (audited `piiMaskingSkipped` **when the
+  policy asked for masking**) and capped at **8 concurrent sessions per project,
+  per replica** (503 past that). `inference.openai.baseUrl` retargets the backend at
+  any OpenAI-compatible endpoint — must be `https`, and needs a token beside it.
+- **`openrouter`** — a reseller in front of ~60 vendors (~400 models),
+  bearer-token auth. Available **only when** its token is set. Two surfaces off
+  that one key — and **unlike the sibling two-surface backends, each surface
+  reaches every vendor it resells**, not one model family: an Anthropic-SDK
+  agent can drive Gemini, an OpenAI-SDK agent can drive Claude. Spend is billed
+  on **the cost OpenRouter reports on each response**, not a rate-card token
+  price — so a model missing from the price table still meters. (**BYOK** meters
+  on upstream charge + fee where the response carries its upstream-cost figure;
+  where that figure is missing it falls back to table pricing, and the gap
+  returns.) Keep
+  `openrouter.ai` **denied**: one key reaching 60 vendors is the cheapest way for
+  an agent to spend money nothing meters.
 
 `GET /v1/inference/providers` reports the live set; the UI gates its picker on
 it. A policy can only select a provider the deployment actually has.
@@ -53,7 +75,9 @@ classification = a Claude **Haiku**. Managed model config: temp **0.3**, max
 **16k** output tokens, **100**-step limit, **30k**-char tool-output truncation,
 prompt caching auto. Install-time env: `NEXUS_BEDROCK_TOKEN`,
 `NEXUS_AZURE_BASE_URL` + `NEXUS_AZURE_TOKEN` (both-or-neither),
-`NEXUS_AZURE_ANTHROPIC_MODEL`. See `install-local.md` for the Helm form.
+`NEXUS_AZURE_ANTHROPIC_MODEL`, `NEXUS_OPENAI_TOKEN` + optional
+`NEXUS_OPENAI_BASE_URL`, `NEXUS_OPENROUTER_TOKEN` + optional
+`NEXUS_OPENROUTER_MODEL`. See `install-local.md` for the Helm form.
 
 > **Provider must match in three places** for a managed agent to answer: the
 > platform install (`inference.*`), the policy (`managedInference.provider`), and
