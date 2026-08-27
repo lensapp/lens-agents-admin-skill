@@ -73,8 +73,14 @@ kubectl cluster-info
 
 The chart is an OCI artifact on GHCR; it bundles PostgreSQL and defaults its IdP
 to Lens ID. **Managed inference** means the platform holds the provider
-credential and proxies every LLM call (metered/gated/audited). Three shared
-flags: `encryption.key` (64 hex, at-rest encryption), `config.publicUrl`,
+credential and proxies every LLM call (metered/gated/audited).
+
+> **Ask the user which credential they hold** before you install, and use that
+> block. Do **not** default to Bedrock: it is the one backend that is always
+> *selectable*, but with no token and no IAM role behind it every call fails,
+> and the agent looks broken rather than unconfigured.
+
+Three shared flags: `encryption.key` (64 hex, at-rest encryption), `config.publicUrl`,
 `sandboxIngress.host=localtest.me` (required for sandbox web UIs — `localtest.me`
 is public wildcard DNS resolving `*.localtest.me`→127.0.0.1).
 
