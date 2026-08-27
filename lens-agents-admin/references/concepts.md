@@ -79,7 +79,9 @@ invocation. Most are agent-editable at runtime; the **Agent Guide is user-only**
 SaaS / self-hosted / marketplace — same platform code, no features removed.
 **Self-hosted/marketplace send nothing to Lens by default** (telemetry off);
 SaaS defaults on with opt-out. Bedrock keeps data in the AWS account; Azure in
-the Azure tenant.
+the Azure tenant. **OpenAI and OpenRouter do not** — prompts leave your own
+tenancy, and under OpenRouter the vendor they reach follows the model the agent
+names, so the parties are decided per request.
 
 ## Be honest about the documented limitations
 A competent admin knows the platform's own stated caveats:

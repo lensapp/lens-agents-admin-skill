@@ -44,9 +44,10 @@ only for the human's browser sign-ins (Steps 4 and the Step 5 MCP login).
 | `curl` | `curl --version` | health check |
 
 Plus: outbound internet, a **Lens ID** account (sign up at `app.k8slens.dev`),
-and **one inference-provider credential** — an **AWS Bedrock** API key, **or**
-an **Azure (Microsoft Foundry)** resource URL + API key with a Claude deployment.
-(Other providers via Team Lens.)
+and **one inference-provider credential** — an **OpenRouter** API key (fewest
+steps: no cloud account, no IAM, no region), an **AWS Bedrock** API key, an
+**Azure (Microsoft Foundry)** resource URL + API key with a Claude deployment,
+or an **OpenAI** API key.
 
 > **minikube MUST use the Docker driver.** Sandboxes lock down egress with
 > `nftables`, so the node kernel needs `nf_tables`. `--driver=docker` runs the
@@ -87,6 +88,28 @@ helm install lens-agents oci://ghcr.io/lensapp/lens-agents \
   --wait --timeout 10m
 ```
 
+**OpenRouter (fewest steps — one key, ~400 models):** same three shared flags, plus:
+```bash
+  --set inference.openrouter.token="<openrouter-api-key>"
+```
+- The key **is** the configuration; nothing else to set. Both wire formats ride
+  it, so a Claude-Code-shaped and an OpenAI-SDK-shaped agent both get a managed
+  endpoint, and either can drive any model it routes.
+- Optional `--set inference.openrouter.model="<vendor/model>"` seeds the
+  sandbox's `ANTHROPIC_MODEL` (default `anthropic/claude-sonnet-5`). **Prism
+  ignores it** — Prism reads `OPENROUTER_MODEL_ID` (default
+  `openai/gpt-5.6-sol`) and keeps memory embeddings **off** on this backend.
+
+**OpenAI (GPT only):** same three shared flags, plus:
+```bash
+  --set inference.openai.token="<openai-api-key>"
+```
+- The key is what makes the provider selectable. OpenAI hosts no Claude, so a
+  policy selecting `openai` gets **no** managed Anthropic endpoint.
+- Optional `--set inference.openai.baseUrl="https://<host>/<prefix>"` targets any
+  OpenAI-compatible endpoint (corporate gateway, LiteLLM, self-hosted). Must be
+  `https`, and a token must sit beside it or the install fails.
+
 **Azure (Claude on Microsoft Foundry):** same three shared flags, plus:
 ```bash
   --set inference.azure.baseUrl="https://<resource>.services.ai.azure.com" \
@@ -103,10 +126,12 @@ helm install lens-agents oci://ghcr.io/lensapp/lens-agents \
 **always** available (falls back to the AWS default credential chain if no
 token); **Azure** appears only when its base URL+token are set; **Bedrock
 Mantle** (OpenAI/Anthropic-compatible off one Bedrock key) appears only when a
-Bedrock token is set. `GET /v1/inference/providers` reports the live set.
+Bedrock token is set; **OpenAI** and **OpenRouter** each appear only when their
+own token is set. `GET /v1/inference/providers` reports the live set.
 
 > Keep tokens out of shell history: `--set inference.<provider>.existingSecret=<name>`
-> (default keys `NEXUS_BEDROCK_TOKEN` / `NEXUS_AZURE_TOKEN`, override with
+> (default keys `NEXUS_BEDROCK_TOKEN` / `NEXUS_AZURE_TOKEN` /
+> `NEXUS_OPENAI_TOKEN` / `NEXUS_OPENROUTER_TOKEN`, override with
 > `existingSecretKey`). On EKS, Bedrock can resolve from an IAM role and skip the
 > token.
 
@@ -168,9 +193,11 @@ chat URL. Hand the user **both** URLs: the platform web UI (`config.publicUrl`)
 and the Prism chat URL (`exposedPorts[0].url`). See `agents.md` for the exact
 `create_sandbox` payload.
 
-> **Provider must match in three places** (Bedrock or Azure): the Helm
-> `inference.*` flag (Step 2), the policy `managedInference.provider`, and the
-> sandbox `LLM_PROVIDER` env. A mismatch = the agent won't answer.
+> **Provider must match in three places** (`bedrock` | `azure` |
+> `bedrock-mantle` | `openai` | `openrouter`): the Helm `inference.*` flag
+> (Step 2), the policy `managedInference.provider`, and the sandbox
+> `LLM_PROVIDER` env. A mismatch = the agent won't answer — and an
+> **unrecognized** `LLM_PROVIDER` doesn't throw, it falls back to `bedrock`.
 
 ## Troubleshooting (host-side)
 

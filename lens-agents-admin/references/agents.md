@@ -38,9 +38,11 @@ provider. Image `ghcr.io/lensapp/prism-agent:latest`, command `exec ./start.sh`,
 
 - **Identity (first boot only — ignored on restarts of a reused `/data`):**
   `AGENT_ID`, `AGENT_NAME` (default `Prism`), `TEAM_NAME`.
-- **Provider:** `LLM_PROVIDER` = `bedrock` (default) or `azure` — **a typo
-  throws at boot.** Must match the policy's `managedInference.provider` and the
-  platform install.
+- **Provider:** `LLM_PROVIDER` = `bedrock` (default), `azure`,
+  `bedrock-mantle`, `openai`, or `openrouter`. **A typo does not throw — it
+  silently falls back to `bedrock`**, so a misspelt value looks like a provider
+  mismatch, not a config error. Must match the policy's
+  `managedInference.provider` and the platform install.
 
 That's all you set. Everything else the agent needs at runtime — managed
 inference, MCP tools, credentials (incl. Slack tokens), and the platform

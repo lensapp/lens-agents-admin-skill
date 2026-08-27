@@ -44,6 +44,6 @@ Know which way each guard fails before you rely on it:
 - Provider must match across **install + policy + sandbox `LLM_PROVIDER`** or the agent won't answer.
 
 ## Doc inconsistencies to treat carefully
-- Provider list: treat the models/inference docs as authoritative — **Bedrock, Azure (Foundry), Bedrock Mantle**. Older pages say "Anthropic and AWS Bedrock only."
+- Provider list: treat the models/inference docs as authoritative — **Bedrock, Azure (Foundry), Bedrock Mantle, OpenAI, OpenRouter**. Older pages say "Anthropic and AWS Bedrock only," or list only the first three.
 - Spending scopes: the current model is **four** (org/team/agent/sandbox); some pages still say three.
 - SSO: docs describe **OIDC**; an FAQ mentions SAML — the platform documents OIDC.
