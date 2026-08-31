@@ -51,6 +51,15 @@ agents. Don't tell a developer to ask for org-admin rights to cap their own
 sandbox — they already have the rights, provided they are a project ADMIN and
 not merely a MEMBER.
 
+**A per-sandbox cap is a budget, not a containment boundary.** `create_sandbox`
+is visible to `oidc` and `api-token` principals and needs only project ADMIN, so
+an agent with that reach can start a fresh sandbox — which has no cap, since caps
+are opt-in — or destroy and recreate its own to reset the counter. The **project
+and org ceilings** are what actually bound it: they count spend by any principal
+in scope, so a respawned sandbox lands under the same ceiling. When someone asks
+you to bound an agent's spend, set the project ceiling; per-sandbox caps beneath
+it are for attribution and early warning.
+
 **A ceiling bounds managed inference, not all spend.** BYO-key LLM traffic
 through the forward proxy is metered into the same limits but is not gated by
 them, so a limit stops spend only on the paths that route through the managed
