@@ -22,9 +22,39 @@ sandbox's own row only. The **mutations** — `list_spending_limits`,
 `sandbox` or `api-token`). So a managed agent (e.g. Prism) can watch its own budget
 without being made a project admin.
 
-Limits form a **4-level stack** — org, user, agent, sandbox — and **the
-most-restrictive applicable limit wins**. `actorType: agent` targets an API
-token's id; `actorType: sandbox` targets one specific sandbox.
+A sandbox's status read includes its **project ceiling** as well as its own row
+and the org's, because that ceiling is part of the budget it actually has. That
+does mean a sandbox can see project-aggregate spend, not only its own.
+
+Being OIDC-typed is **not** enough to mutate a limit. A shell sandbox token
+replays its creator's whole OIDC context, and an API token can hold team ADMIN
+on a project — either would let the capped party lift its own cap. Mutations
+therefore require a session that is not sandbox-mediated; reads are unaffected.
+
+Limits form a **5-level stack** — org, project, user, agent, sandbox — and
+**every applicable limit gates the request, so the most-restrictive one wins**.
+`actorType: agent` targets an API token's id; `actorType: sandbox` targets one
+specific sandbox; `actorType: project` targets a project and catches spend by
+any principal inside it.
+
+**Who may set which scope** — this is the delegation model, not a detail:
+
+| Scope | Who may set/remove it |
+|-------------------|----------------------------------------------------------|
+| `org`, `project` | **Org admins only.** These are ceilings; a project's own admins must not be able to raise the bound they were given. |
+| `sandbox` | An **admin of that sandbox's project** — the same role that creates and edits the sandbox — or an org admin. |
+| `agent`, `user` | **Org admins only.** |
+
+So the intended shape is: an org admin sets the org and per-project ceilings,
+then leaves per-sandbox budgeting to the project admins who actually run the
+agents. Don't tell a developer to ask for org-admin rights to cap their own
+sandbox — they already have the rights, provided they are a project ADMIN and
+not merely a MEMBER.
+
+**A ceiling bounds managed inference, not all spend.** BYO-key LLM traffic
+through the forward proxy is metered into the same limits but is not gated by
+them, so a limit stops spend only on the paths that route through the managed
+inference endpoint. Keep provider hosts denied in policy if a cap has to hold.
 
 ## Usage & cost
 

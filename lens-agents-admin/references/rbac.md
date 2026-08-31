@@ -14,6 +14,12 @@ the org-scoped operations that nothing else can do. This is the onboarding path;
 
 ## Project admin — an API token on a team with project-ADMIN role
 
+**Spending limits are the exception to everything below.** Changing one takes a
+human OIDC session that is not sandbox-mediated, so a project-admin API token
+cannot set or remove a limit even for its own project's sandboxes — nor can code
+running inside a shell sandbox, which carries its creator's OIDC identity. Both
+can still *read* limits. See `governance.md`.
+
 An **API token is never an org admin**, but it *can* administer a **project** it
 holds ADMIN role on. Add the token to a team and set that team's project role to
 **ADMIN** (`set_team_project_access`); then, over the **global `/mcp`**, it can

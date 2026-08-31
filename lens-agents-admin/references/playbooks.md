@@ -52,9 +52,15 @@ For a plain REST+OpenAPI upstream use `create_http_connector` instead.)*
 
 ## 5. Set budgets and watch spend
 
-1. `set_spending_limit { actorType:"sandbox", actorId:"<sandboxId>", period:"month", limitCents:5000 }`. *(governance.md)*
-2. `get_usage_cost_summary` / `get_usage_cost_timeseries` to watch spend.
-3. `query_audit_trail { source:"llm-proxy", result:"failure" }` to see budget rejections.
+1. As an **org admin**, set the ceilings first — they are the only limits a
+   project's own admins cannot raise:
+   `set_spending_limit { actorType:"org", period:"month", limitCents:500000 }` and
+   `set_spending_limit { actorType:"project", actorId:"<projectId>", period:"month", limitCents:100000 }`. *(governance.md)*
+2. Leave per-sandbox caps to whoever runs the sandbox — an admin of that
+   sandbox's project can set them:
+   `set_spending_limit { actorType:"sandbox", actorId:"<sandboxId>", period:"month", limitCents:5000 }`.
+3. `get_usage_cost_summary` / `get_usage_cost_timeseries` to watch spend.
+4. `query_audit_trail { source:"llm-proxy", result:"failure" }` to see budget rejections.
 
 ## 6. Provision an "Odin" admin agent (a Prism that administers its projects)
 
