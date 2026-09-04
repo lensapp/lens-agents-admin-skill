@@ -75,11 +75,18 @@ Memory Summary, Heartbeat, Vision, Agent Guide, Bootstrap), all loaded every
 invocation. Most are agent-editable at runtime; the **Agent Guide is user-only**
 (the hard behavioral boundary). See `agents.md`.
 
-## Deployment model sets data residency + telemetry defaults
+## Deployment model sets data residency, not telemetry defaults
 SaaS / self-hosted / marketplace — same platform code, no features removed.
-**Self-hosted/marketplace send nothing to Lens by default** (telemetry off);
-SaaS defaults on with opt-out. Bedrock keeps data in the AWS account; Azure in
-the Azure tenant. **OpenAI and OpenRouter do not** — prompts leave your own
+**Product telemetry is on by default in every model, self-hosted included**:
+released images bake in a collector endpoint and write key, and the chart's
+`telemetry.enabled` defaults to `true`. Disable it at install time with
+`--set telemetry.enabled=false`, or point `telemetry.endpoint` at a collector
+you own — there is no middle setting. What leaves the cluster is product events:
+the ids **and names** of orgs, projects, teams and sandboxes, plus tool names,
+counts and outcomes — never prompts, completions, tool arguments or credential
+values. Tell an operator who treats object names as sensitive before they
+install, not after. Bedrock keeps data in the AWS account; Azure in the Azure
+tenant. **OpenAI and OpenRouter do not** — prompts leave your own
 tenancy, and under OpenRouter the vendor they reach follows the model the agent
 names, so the parties are decided per request.
 
