@@ -109,8 +109,8 @@ tokens + grant team access (OIDC org-admin). Ask **which project(s)** Odin manag
    session does this step (Odin itself never can).
 6. `create_policy { projectId:<home>, name:"odin-admin", managedInference:{enabled:true, provider:"..."}, connectors:[{ connectorId:"<nexus-api id>", allowedTools:[<admin tools>], credentialId:"<cred id>" }] }`.
    The connector grant's **`credentialId`** is what makes those first-party tools
-   run as the token's principal. `allowedTools` can only name **api-token-visible**
-   tools — the `nexus-api` catalog carries no others. *(policies.md)*
+   run as the token's principal. Only **api-token-visible** tools exist in the
+   `nexus-api` catalog, so those are the only names `allowedTools` can usefully list. *(policies.md)*
 7. `create_sandbox { projectId:<home>, name:"odin", image:"ghcr.io/lensapp/prism-agent:latest", command:"exec ./start.sh", cpu:"500m", memory:"2Gi", env:{ LLM_PROVIDER:"..." }, volumes:[{mountPath:"/data"}], exposedPorts:[{name:"web",port:3003,auth:"private"}], policyIds:["<homePolicyId>"] }`; poll `get_sandbox` for the chat URL. Attaching the policy **to the sandbox** here scopes admin to *this* sandbox — don't bind it `all_sandboxes` or you elevate every sandbox in the project. Prefer `auth:"private"` (requires a platform session to reach the chat) for a project-admin agent; `"public"` only for a throwaway trial. *(agents.md — `cpu`/`memory` required)*
 8. Seed the admin skill so Odin knows it's an admin — the `shell_*` tools run in a
    *fresh* sandbox as **you**, not inside Odin's container, so you can't write its

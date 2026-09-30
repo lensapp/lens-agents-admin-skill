@@ -29,7 +29,8 @@ does mean a sandbox can see project-aggregate spend, not only its own.
 Being OIDC-typed is **not** enough to mutate a limit. A shell sandbox token
 replays its creator's whole OIDC context, and an API token can hold team ADMIN
 on a project — either would let the capped party lift its own cap. Mutations
-therefore require a session that is not sandbox-mediated; reads are unaffected.
+therefore require a session that is not sandbox-mediated; status reads are
+unaffected (`list_spending_limits` is refused from inside a sandbox).
 
 Limits form a **5-level stack** — org, project, user, agent, sandbox — and
 **every applicable limit gates the request, so the most-restrictive one wins**.
