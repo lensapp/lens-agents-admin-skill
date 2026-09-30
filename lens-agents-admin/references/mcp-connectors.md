@@ -11,7 +11,16 @@ tools.
 
 Tools: `list_mcp_servers`, `get_mcp_server`, `create_mcp_server`,
 `update_mcp_server`, `delete_mcp_server`, `sync_mcp_server_tools`
-((re)discover the upstream tool catalog after it changes).
+((re)discover the upstream tool catalog after it changes). `transport` is `sse`
+or `streamable-http`; `deferDiscovery: true` on create skips the first probe when
+you'll attach a credential and sync afterwards; `update_mcp_server` can also set
+`headers` and `enabled`.
+
+**Visibility:** only `list_mcp_servers`, `get_mcp_server`, and
+`list_oauth_applications` are offered to API tokens. Everything else here —
+server create/update/delete/sync, credential list/create/delete,
+`create_http_connector`, `list_connector_entries`,
+`set_connector_entry_visibility` — is **OIDC-only**.
 
 The reserved server name **`nexus-api`** is the platform's own self-reference to
 `<publicUrl>/mcp` (used so first-party tools can reach project sandboxes) —
@@ -19,7 +28,8 @@ The reserved server name **`nexus-api`** is the platform's own self-reference to
 (`list_mcp_servers` shows it). You **don't create a self-reference connector** — to
 give a managed agent project-admin power (the **"Odin"** pattern), attach a
 project-admin API token as a **credential on `nexus-api`**
-(`create_mcp_server_credential { serverId:<nexus-api>, authType:"static", … }`) and
+(`create_mcp_server_credential { serverId:<nexus-api>, authType:"static", … }` —
+OIDC-only, so a human session does this step) and
 reference that credential from a policy connector grant (`connectors[].credentialId`).
 The platform then dispatches `nexus-api`'s first-party admin tools as the **token's**
 principal, so the agent sees `create_policy`, `create_sandbox`, etc. as native tools
@@ -32,6 +42,39 @@ Tools: `list_mcp_server_credentials`, `create_mcp_server_credential`,
 `oauth-client-credentials`, and `oauth-authorization-code` (the latter
 supports per-actor PKCE grants). A policy's connector ref picks which
 credential each actor uses via `credentialId`.
+
+### Reusable OAuth applications (deployment catalog)
+
+An operator can pre-register OAuth Login applications so nobody pastes client
+secrets into a credential. The catalog is a JSON Secret mounted by the chart —
+`oauthApplications.existingSecret` / `existingSecretKey` (default
+`applications.json`):
+
+```json
+{ "version": 1,
+  "applications": [{ "id": "…", "displayName": "…",
+    "authorizationServerUrl": "https://…", "tokenUrl": "https://…",
+    "clientId": "…", "clientSecret": "…",
+    "upstreamUrls": ["https://mcp.example.com/mcp"],
+    "defaultScopes": "…", "prompt": "consent" }] }
+```
+
+`clientSecret`, `defaultScopes`, and `prompt` are optional; `upstreamUrls` needs
+at least one entry. Endpoints must be HTTPS (HTTP only for loopback). `prompt` is
+space-separated `none` / `login` / `consent` / `select_account`, with `none` only
+on its own. **Restart all replicas after changing it**; registration secrets are
+never copied to the database.
+
+- `list_oauth_applications { projectId }` (project admin) lists the choices —
+  never secrets.
+- `create_mcp_server_credential { …, authType:"oauth-authorization-code",
+  oauthApplicationId }` uses one instead of inline client fields. The server URL
+  must match one of the application's `upstreamUrls`; omit `scope` to use its
+  `defaultScopes`, or send an empty scope to request none.
+- Credential views report `oauthApplicationAvailable`,
+  `oauthApplicationDisplayName`, and `oauthApplicationError`, so a credential whose
+  application no longer resolves (removed or changed in the catalog) shows up as
+  broken rather than silently failing.
 
 ## Expose to agents
 
