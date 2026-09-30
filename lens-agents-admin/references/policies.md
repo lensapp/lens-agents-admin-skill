@@ -33,7 +33,8 @@ Non-obvious semantics, by field:
 - **`integrations[]`** (kubernetes / aws-connection, see `connections.md`) is
   **not allowed on org-scoped policies** — project policies only.
 - **`managedInference`** — omitting the object leaves inference disabled. It
-  only *selects* the managed backend (e.g. `bedrock`); the underlying
+  only *selects* the managed backend (`provider`, e.g. `bedrock` or `litellm`;
+  optional `providers: [...]` enables several, with `provider` as the primary); the underlying
   provider credential itself is a platform install-time value, never set
   here.
 - **`piiMasking`** — `types` picks from the platform's PII enum;

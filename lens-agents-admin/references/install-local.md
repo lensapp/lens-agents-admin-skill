@@ -114,8 +114,9 @@ helm install lens-agents oci://ghcr.io/lensapp/lens-agents \
 - The key is what makes the provider selectable. OpenAI hosts no Claude, so a
   policy selecting `openai` gets **no** managed Anthropic endpoint.
 - Optional `--set inference.openai.baseUrl="https://<host>/<prefix>"` targets any
-  OpenAI-compatible endpoint (corporate gateway, LiteLLM, self-hosted). Must be
-  `https`, and a token must sit beside it or the install fails.
+  OpenAI-compatible endpoint (corporate gateway, self-hosted). Must be
+  `https`, and a token must sit beside it or the install fails. For a LiteLLM
+  proxy, prefer the dedicated LiteLLM backend below.
 
 **Azure (Claude on Microsoft Foundry):** same three shared flags, plus:
 ```bash
@@ -129,16 +130,33 @@ helm install lens-agents oci://ghcr.io/lensapp/lens-agents \
 - `inference.azure.token` = that deployment's Key (sent as `api-key`).
 - Optional `--set inference.azure.anthropic.model="<deployment>"` (default `claude-opus-4-8`).
 
+**LiteLLM (your own LiteLLM proxy):** same three shared flags, plus:
+```bash
+  --set inference.litellm.baseUrl="https://litellm.example.com" \
+  --set inference.litellm.token="<litellm-key>" \
+  --set inference.litellm.model="<your-litellm-model-name>"
+```
+- `baseUrl` = the proxy root (a trailing `/v1` is accepted); must be `https`.
+  `baseUrl` and `token` must be set together or the install fails.
+- `model` has **no default** — LiteLLM model names are yours. Anthropic-SDK
+  agents need it (or `ANTHROPIC_MODEL` in the policy env) to send a request.
+- Optional `forwardTags: true` tags each call `project:<org-slug>/<project-slug>`
+  so LiteLLM's spend reports break down by project. Leave it off if the proxy sets
+  `router_settings.enable_tag_filtering` (it refuses tags no deployment has).
+- Spend is metered **only by the cost LiteLLM reports**. For streamed calls set
+  `litellm_settings.include_cost_in_streaming_usage: true` and give every model a
+  price, or that spend counts against no limit.
+
 **Provider availability (how the platform decides what's offered):** Bedrock is
 **always** available (falls back to the AWS default credential chain if no
 token); **Azure** appears only when its base URL+token are set; **Bedrock
 Mantle** (OpenAI/Anthropic-compatible off one Bedrock key) appears only when a
 Bedrock token is set; **OpenAI** and **OpenRouter** each appear only when their
-own token is set. `GET /v1/inference/providers` reports the live set.
+own token is set; **LiteLLM** appears only when its base URL + token are set. `GET /v1/inference/providers` reports the live set.
 
 > Keep tokens out of shell history: `--set inference.<provider>.existingSecret=<name>`
 > (default keys `NEXUS_BEDROCK_TOKEN` / `NEXUS_AZURE_TOKEN` /
-> `NEXUS_OPENAI_TOKEN` / `NEXUS_OPENROUTER_TOKEN`, override with
+> `NEXUS_OPENAI_TOKEN` / `NEXUS_OPENROUTER_TOKEN` / `NEXUS_LITELLM_TOKEN`, override with
 > `existingSecretKey`). On EKS, Bedrock can resolve from an IAM role and skip the
 > token.
 

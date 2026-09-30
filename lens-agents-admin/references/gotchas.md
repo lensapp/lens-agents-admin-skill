@@ -5,7 +5,7 @@ Know which way each guard fails before you rely on it:
 
 | Guard | Direction | Meaning |
 |-------|-----------|---------|
-| Managed-inference gate | **fail-CLOSED** | no policy/grant/resolver error → 403 |
+| Managed-inference gate | **fail-CLOSED** | no policy/grant → 403; resolver error → 502 |
 | Budget check | **fail-OPEN** | budget-service outage won't block traffic |
 | PII request masking | **fail-CLOSED** by default | blocks request if masking fails (`failOpen:true` to override) |
 | PII response un-mask | **fail-OPEN** | upstream already replied |
@@ -45,6 +45,6 @@ Know which way each guard fails before you rely on it:
 - Provider must match across **install + policy + sandbox `LLM_PROVIDER`** or the agent won't answer — and **an unrecognized `LLM_PROVIDER` doesn't throw, it silently falls back to `bedrock`**, so a typo presents as a mismatch, not a config error (see `agents.md`).
 
 ## Doc inconsistencies to treat carefully
-- Provider list: treat the models/inference docs as authoritative — **Bedrock, Azure (Foundry), Bedrock Mantle, OpenAI, OpenRouter**. Older pages say "Anthropic and AWS Bedrock only," or list only the first three.
+- Provider list: treat the models/inference docs as authoritative — **Bedrock, Azure (Foundry), Bedrock Mantle, OpenAI, OpenRouter, LiteLLM**. Older pages say "Anthropic and AWS Bedrock only," or list only the first three.
 - Spending scopes: the current model is **four** (org/team/agent/sandbox); some pages still say three.
 - SSO: docs describe **OIDC**; an FAQ mentions SAML — the platform documents OIDC.
