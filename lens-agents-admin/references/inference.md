@@ -75,8 +75,9 @@ reach models via the managed endpoint — the deny rule is the only guardrail.
   the container keeps running (paused, not killed).
 - **PII request masking: fail-CLOSED by default** (`failOpen: false` blocks the
   request if masking fails — compliance). `failOpen: true` proceeds unmasked
-  (operator accepts the risk). If the deployment has no PII anonymizer at all,
-  a masked request gets **503**. **PII response un-masking: always fail-open**
+  (operator accepts the risk) — this covers masking that ran and failed. If
+  masking can't run at all (no anonymizer, or the PII service is unavailable),
+  the request gets **503** regardless of `failOpen`. **PII response un-masking: always fail-open**
   (upstream already replied).
 - Embedding requests are **exempt from masking** (masking would corrupt vectors)
   — metered, not masked.
