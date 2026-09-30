@@ -54,8 +54,11 @@ Tools: `list_policy_bindings`, `get_policy_binding`, `create_policy_binding`,
 is advisory: it shows where a project binding got **clipped** by the org
 ceiling (the effective grant ended up narrower than the binding asked for).
 
-A binding's `position` sets merge precedence — lower position wins when
-multiple bindings apply to the same subject.
+A binding's `position` sets merge order: bindings that apply to the same subject
+merge in ascending `position` (then creation time). Grants such as allowed domains
+and managed inference accumulate; single-valued settings — an `env` key, a
+same-named credential ref, `piiMasking`, the inference provider — take the value
+from the **highest** position (last writer wins).
 
 **Subject kinds** (discriminated on `kind`): `everyone`, `user`, `api_token`
 (note: `api_token`, not `agent_token`), `all_sandboxes`.
