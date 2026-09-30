@@ -91,15 +91,18 @@ org admin has **full** control (incl. org-scoped ops); an **API token** is never
 an org admin but administers any **project** its team holds **ADMIN** role on
 (policies, credentials, sandboxes, bindings). A default **sandbox** identity is
 capped at MEMBER, but you can make a sandbox agent a project admin ("Odin") by
-giving it a self-`/mcp` connector with a project-admin token credential (see
-`references/rbac.md`). On an OIDC session you can also
+granting it the project's built-in `nexus-api` connector with a project-admin
+token credential (`connectors[].credentialId`); it then gets the api-token-visible
+tools only, and OIDC-only steps (such as creating that credential) still need a
+human (see `references/rbac.md`). On an OIDC session you can also
 **create the org itself** (`create_org`): during onboarding, if `list_orgs` is
 empty, **ask the user for an org name and create it yourself** — don't send them
 to the UI. The only ops that always need the *human's* own session are accepting
-personal invitations. **Admin tools require the global `/mcp` endpoint** — a
-sandboxed agent on its *default* project-scoped endpoint + sandbox identity sees
-**no** admin tools (beyond three self-scoped spend/usage reads — it can watch its
-*own* budget without being made a project admin; see `references/governance.md`).
+personal invitations. **Admin tools require the global `/mcp` endpoint** — the
+project-scoped endpoint a sandbox is wired to carries **no** first-party tools, only
+the project's connectors. On the global `/mcp`, a default sandbox identity sees only
+three self-scoped spend/usage reads — it can watch its *own* budget without being
+made a project admin; see `references/governance.md`.
 Details in `references/rbac.md`.
 
 ## Connecting

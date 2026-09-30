@@ -13,7 +13,7 @@ connect to the global `/mcp`), then continue with playbook 1 below.
 
 ## 1. Onboard the platform from zero → a running agent
 
-1. `list_orgs` → pick the org id. **If it's empty** (common on a fresh install): you're on an OIDC session here, so **ask the user for an org name and `create_org { name }` yourself**, then use its id — don't send them to the UI. (Only an API-token principal must defer org creation to a human.) *(tenancy.md)*
+1. `list_orgs` → pick the org id. **If it's empty** (common on a fresh install): you're on an OIDC session here, so **ask the user for an org name and `create_org { name, displayName }` yourself**, then use its id — don't send them to the UI. (Only an API-token principal must defer org creation to a human.) *(tenancy.md)*
 2. `create_project { orgId, name: "demo", displayName: "Demo" }` → note `projectId`. *(tenancy.md)*
 3. `create_policy { projectId, name: "starter", managedInference: { enabled: true, provider: "<installed-provider>" } }` → note `policyId`. *(policies.md — set the provider the platform was installed with: bedrock | azure | bedrock-mantle | openai | openrouter. **Don't copy `bedrock` blindly** — it is always selectable even with no credential behind it, and Prism's `LLM_PROVIDER` defaults to it too, so all three places "match", the stack comes up clean, and every call fails.)*
 4. `create_policy_binding { projectId, name: "starter-sandboxes", policyIds: ["<policyId>"], subjects: [{ kind: "all_sandboxes" }] }`. *(policies.md)*
@@ -36,7 +36,7 @@ connect to the global `/mcp`), then continue with playbook 1 below.
 ## 3. "Integrate with <system> over MCP"
 
 1. `create_mcp_server { projectId, name, displayName, transport: "streamable-http", url }`. *(mcp-connectors.md)*
-2. If it needs auth: `create_mcp_server_credential { projectId, serverId, name, authType, ... }`.
+2. If it needs auth: `create_mcp_server_credential { projectId, serverId, name, authType, ... }` (OIDC-only, like the rest of connector management).
 3. `sync_mcp_server_tools { serverId }` → inspect the discovered tools.
 4. Expose to the agent via its policy `connectors: [{ connectorId, allowedTools:[...], credentialId? }]`, then (re)bind. *(policies.md)*
 5. The agent now sees the tools at `/projects/:projectId/mcp`.
@@ -54,11 +54,11 @@ For a plain REST+OpenAPI upstream use `create_http_connector` instead.)*
 
 1. As an **org admin**, set the ceilings first — they are the only limits a
    project's own admins cannot raise:
-   `set_spending_limit { actorType:"org", period:"month", limitCents:500000 }` and
-   `set_spending_limit { actorType:"project", actorId:"<projectId>", period:"month", limitCents:100000 }`. *(governance.md)*
+   `set_spending_limit { orgId, actorType:"org", period:"month", limitCents:500000 }` and
+   `set_spending_limit { orgId, actorType:"project", actorId:"<projectId>", period:"month", limitCents:100000 }`. *(governance.md)*
 2. Leave per-sandbox caps to whoever runs the sandbox — an admin of that
    sandbox's project can set them:
-   `set_spending_limit { actorType:"sandbox", actorId:"<sandboxId>", period:"month", limitCents:5000 }`.
+   `set_spending_limit { orgId, actorType:"sandbox", actorId:"<sandboxId>", period:"month", limitCents:5000 }`.
 3. `get_usage_cost_summary` / `get_usage_cost_timeseries` to watch spend.
 4. `query_audit_trail { source:"llm-proxy", result:"failure" }` to see budget rejections.
 
@@ -94,7 +94,7 @@ tokens + grant team access (OIDC org-admin). Ask **which project(s)** Odin manag
 1. For each managed project, create a **dedicated** least-privilege team with
    **project-ADMIN** role — do **not** elevate an existing shared team (it may carry
    many users + throwaway agent tokens you'd be making project admins):
-   `create_team { orgId, name:"<scope>-admins" }` → `set_team_project_access { teamId, projectId, role:"ADMIN" }`. *(tenancy.md)*
+   `create_team { orgId, name:"<scope>-admins", displayName }` → `set_team_project_access { teamId, projectId, role:"ADMIN" }`. *(tenancy.md)*
 2. `create_api_token { orgId, name:"odin-<scope>" }` → capture the raw token **once**.
    **Scope it least-privilege** — admin on only the projects Odin should manage
    (Odin's authority *is* this token's scope). *(tenancy.md)*
@@ -105,10 +105,12 @@ tokens + grant team access (OIDC org-admin). Ask **which project(s)** Odin manag
    platform's own `/mcp`): `list_mcp_servers { projectId:<home> }` → grab the
    `nexus-api` server id. *(mcp-connectors.md — `create_mcp_server` refuses to shadow it.)*
 5. `create_mcp_server_credential { projectId:<home>, serverId:"<nexus-api id>", name:"odin-<scope>-token", authType:"static", staticValue:"<token>" }` —
-   stores the token encrypted, server-side.
+   stores the token encrypted, server-side. This tool is **OIDC-only**, so a human
+   session does this step (Odin itself never can).
 6. `create_policy { projectId:<home>, name:"odin-admin", managedInference:{enabled:true, provider:"..."}, connectors:[{ connectorId:"<nexus-api id>", allowedTools:[<admin tools>], credentialId:"<cred id>" }] }`.
    The connector grant's **`credentialId`** is what makes those first-party tools
-   run as the token's principal. *(policies.md)*
+   run as the token's principal. `allowedTools` can only name **api-token-visible**
+   tools — the `nexus-api` catalog carries no others. *(policies.md)*
 7. `create_sandbox { projectId:<home>, name:"odin", image:"ghcr.io/lensapp/prism-agent:latest", command:"exec ./start.sh", cpu:"500m", memory:"2Gi", env:{ LLM_PROVIDER:"..." }, volumes:[{mountPath:"/data"}], exposedPorts:[{name:"web",port:3003,auth:"private"}], policyIds:["<homePolicyId>"] }`; poll `get_sandbox` for the chat URL. Attaching the policy **to the sandbox** here scopes admin to *this* sandbox — don't bind it `all_sandboxes` or you elevate every sandbox in the project. Prefer `auth:"private"` (requires a platform session to reach the chat) for a project-admin agent; `"public"` only for a throwaway trial. *(agents.md — `cpu`/`memory` required)*
 8. Seed the admin skill so Odin knows it's an admin — the `shell_*` tools run in a
    *fresh* sandbox as **you**, not inside Odin's container, so you can't write its

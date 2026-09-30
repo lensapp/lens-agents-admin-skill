@@ -18,7 +18,8 @@ the org-scoped operations that nothing else can do. This is the onboarding path;
 human OIDC session that is not sandbox-mediated, so a project-admin API token
 cannot set or remove a limit even for its own project's sandboxes — nor can code
 running inside a shell sandbox, which carries its creator's OIDC identity. Both
-can still *read* limits. See `governance.md`.
+can still read limit *status* (`get_spending_limit_status`);
+`list_spending_limits` is OIDC-only. See `governance.md`.
 
 An **API token is never an org admin**, but it *can* administer a **project** it
 holds ADMIN role on. Add the token to a team and set that team's project role to
@@ -41,9 +42,9 @@ clips it (see `policies.md`).
 ## Sandbox principals are MEMBER — until you give them a project-admin token via `nexus-api`
 
 A managed agent on its **default sandbox identity** is capped at project
-**MEMBER** regardless of team role — read/observe (**including its *own*
-spend/usage/limit-status over MCP, self-scoped**), manage clusters/AWS,
-run in-sandbox shell tools, but **not** create policies/credentials/sandboxes.
+**MEMBER** regardless of team role. On the global `/mcp` it sees only three
+first-party tools — its *own* spend/usage/limit-status, self-scoped — plus the
+connector tools its policy grants; it can **not** create policies/credentials/sandboxes.
 
 To make a sandbox a **project admin** ("Odin"), attach a **project-admin API
 token** as a credential on the project's built-in **`nexus-api`** connector (the
@@ -52,7 +53,10 @@ from the policy's connector grant (`connectors[].credentialId`) — **don't crea
 new self-reference connector**, `nexus-api` already exists. The platform dispatches
 that connector's first-party tools as the **token's** api-token principal (not the
 sandbox), so Odin gets native admin tools while the token stays server-side — never
-in its env. Its authority is exactly the token's scope, so **scope the token
+in its env. The `nexus-api` catalog holds only **api-token-visible** tools, so
+OIDC-only tools stay out of reach — including `create_mcp_server_credential` and
+the rest of connector management, which means a **human OIDC session** creates
+the token credential in the first place. Its authority is exactly the token's scope, so **scope the token
 least-privilege**; `revoke_api_token` is the kill switch. Crucially, an **org
 ceiling still bounds it** — a project admin (human or agent) can't grant its
 project's sandboxes more than the org allows, and can't edit the org ceiling. Full
@@ -61,7 +65,9 @@ runbook: `playbooks.md` playbook 6 (and `agents.md`).
 ## Org creation: do it yourself on OIDC
 
 **Creating a brand-new organization** (`create_org`) needs an **OIDC session** —
-which you have on the coding-agent onboarding path. So if `list_orgs` is empty,
+which you have on the coding-agent onboarding path. If the install sets
+`config.ownerEmails`, only those accounts may create orgs (empty = any signed-in
+user); whoever creates an org becomes its admin. So if `list_orgs` is empty,
 **ask the user for an org name and call `create_org` yourself**; do **not** send
 them to the web UI to make it. Org creation is only out of reach for an
 **API-token** principal, which must already have its org.

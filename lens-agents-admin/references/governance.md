@@ -16,10 +16,10 @@ Tools: `list_spending_limits`, `get_spending_limit_status`,
 `api-token`, **and `sandbox`** principals; a sandbox call is **self-scoped** —
 clamped to its own sandboxId within its own project regardless of any supplied
 `actorType`/`actorId`/`projectId`/`orgId` (a spoofed org can't win; a foreign org
-is denied), and `get_spending_limit_status` returns org-level limits plus that
-sandbox's own row only. The **mutations** — `list_spending_limits`,
-`set_spending_limit`, `remove_spending_limit` — stay **OIDC-only** (not visible to
-`sandbox` or `api-token`). So a managed agent (e.g. Prism) can watch its own budget
+is denied), and `get_spending_limit_status` returns only the limits that gate that
+sandbox (org, its project, its own row). `list_spending_limits` (a read) and the
+**mutations** `set_spending_limit`, `remove_spending_limit` are **OIDC-only** (not
+visible to `sandbox` or `api-token`). So a managed agent (e.g. Prism) can watch its own budget
 without being made a project admin.
 
 A sandbox's status read includes its **project ceiling** as well as its own row

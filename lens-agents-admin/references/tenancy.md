@@ -13,7 +13,7 @@ Tools: `list_orgs`, `get_org`, `create_org`, `update_org`, `delete_org`,
 
 Call `list_orgs` and use the org it returns. **If it's empty** (common right
 after a fresh install/activation), **create the org yourself**: ask the user for
-an org name, then `create_org { name }`, and continue with its id — don't punt
+an org name, then `create_org { name, displayName }`, and continue with its id — don't punt
 to the web UI. `create_org` works on an **OIDC session** (the coding-agent
 onboarding path), because an org is a human's tenant; it's the one creation an
 **API-token** principal can't do (an admin agent must have its org already).
@@ -23,7 +23,8 @@ onboarding path), because an org is a human's tenant; it's the one creation an
 Tools: `list_projects`, `get_project`, `get_project_public_key`,
 `create_project`, `update_project`, `delete_project`, `rotate_project_keys`.
 
-`create_project`'s `name` is a unique slug within the org.
+`create_project`'s `name` is a unique slug within the org; `displayName` is
+also required.
 
 ## Teams
 
@@ -58,8 +59,9 @@ on** and those teams' **project roles**:
   update/delete its policies, credentials, sandboxes, and project-scoped
   bindings, over the **global `/mcp`**. This is how you provision a per-project
   admin agent ("Odin").
-- **Project MEMBER** (the default): read/observe + manage clusters/AWS + run
-  in-sandbox shell — but not create policies/sandboxes.
+- **Project MEMBER** (`set_team_project_access` takes the role explicitly):
+  read/observe, list/get clusters and AWS connections, run in-sandbox shell — but
+  not create policies/sandboxes or add clusters/AWS connections.
 
 Org-scoped actions (create org/project, mint/revoke tokens, org-level policies &
 bindings, team CRUD, project lifecycle) always require an **org-admin human
