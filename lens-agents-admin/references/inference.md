@@ -6,7 +6,7 @@ call. A policy's `managedInference.provider` selects the backend; the provider
 **credential** is set at **platform install time** (Helm `inference.*` /
 `NEXUS_*` env), not over MCP.
 
-## Five backends (and availability)
+## Six backends (and availability)
 - **`bedrock`** — AWS Bedrock. **Always available** (falls back to the AWS
   default credential chain if no token is set).
 - **`azure`** — Claude on **Microsoft Foundry** (Anthropic Messages API,
@@ -38,13 +38,24 @@ call. A policy's `managedInference.provider` selects the backend; the provider
     falls back to table pricing, and the gap returns.
   - **Egress:** keep `openrouter.ai` **denied**. One key reaching 60 vendors is
     the cheapest way for an agent to spend money nothing meters.
+- **`litellm`** — your own LiteLLM proxy, authenticated with a LiteLLM key sent as
+  a bearer token. Available **only when** both its base URL and token are set.
+  Serves both wire formats (Anthropic `/v1/messages`, OpenAI chat/responses/
+  embeddings, plus `GET /v1/models`), so Claude Code and OpenAI-SDK agents alike
+  get a managed endpoint.
+  - **Metering:** spend is metered **only by the cost LiteLLM reports** — never a
+    rate card. Streamed calls report it only if the LiteLLM config sets
+    `litellm_settings.include_cost_in_streaming_usage: true`; without that, and for
+    any model LiteLLM has no price for, spend **counts against no spending limit**.
 
 `GET /v1/inference/providers` reports the live set; the UI gates its picker on
 it. A policy can only select a provider the deployment actually has.
 
 ## Selection is per-policy and enforced at the backend
 Set `managedInference: { enabled: true, provider: <backend> }` on the policy
-(absent ⇒ inference OFF; opt-in). The proxy checks the **backend** (not just the
+(absent ⇒ inference OFF; opt-in). To enable several backends, add
+`providers: [...]` (unique, and it must include `provider`, which stays the
+primary). The proxy checks the **backend** (not just the
 URL) — a sandbox can't reach a backend its policy didn't select (data-residency
 defense).
 
@@ -57,14 +68,15 @@ nor gated**. **Keep provider hosts DENIED** (the default) so agents can only
 reach models via the managed endpoint — the deny rule is the only guardrail.
 
 ## Fail modes (know which way each fails)
-- **Managed-inference gate: fail-CLOSED** — no policy / no grant / resolver error
-  → 403.
+- **Managed-inference gate: fail-CLOSED** — no policy / no grant → 403; a
+  policy-resolver error → 502.
 - **Budget check: fail-OPEN** — a budget-service outage doesn't take down the
-  proxy. On breach → **HTTP 429 + `Retry-After` + RFC 7807 `budgetExceeded`**;
+  proxy. On breach → **HTTP 429 + `Retry-After` + RFC 7807 `budget-exceeded`**;
   the container keeps running (paused, not killed).
 - **PII request masking: fail-CLOSED by default** (`failOpen: false` blocks the
   request if masking fails — compliance). `failOpen: true` proceeds unmasked
-  (operator accepts the risk). **PII response un-masking: always fail-open**
+  (operator accepts the risk). If the deployment has no PII anonymizer at all,
+  a masked request gets **503**. **PII response un-masking: always fail-open**
   (upstream already replied).
 - Embedding requests are **exempt from masking** (masking would corrupt vectors)
   — metered, not masked.
@@ -77,7 +89,9 @@ prompt caching auto. Install-time env: `NEXUS_BEDROCK_TOKEN`,
 `NEXUS_AZURE_BASE_URL` + `NEXUS_AZURE_TOKEN` (both-or-neither),
 `NEXUS_AZURE_ANTHROPIC_MODEL`, `NEXUS_OPENAI_TOKEN` + optional
 `NEXUS_OPENAI_BASE_URL`, `NEXUS_OPENROUTER_TOKEN` + optional
-`NEXUS_OPENROUTER_MODEL`. See `install-local.md` for the Helm form.
+`NEXUS_OPENROUTER_MODEL`, `NEXUS_LITELLM_BASE_URL` + `NEXUS_LITELLM_TOKEN`
+(both-or-neither) + optional `NEXUS_LITELLM_MODEL` / `NEXUS_LITELLM_FORWARD_TAGS`.
+See `install-local.md` for the Helm form.
 
 > **Provider must match in three places** for a managed agent to answer: the
 > platform install (`inference.*`), the policy (`managedInference.provider`), and
