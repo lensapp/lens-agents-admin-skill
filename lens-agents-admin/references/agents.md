@@ -10,26 +10,31 @@ image.
 ## Launch — `create_sandbox` and lifecycle
 Tools: `list_sandboxes`, `get_sandbox`, `create_sandbox`, `update_sandbox`,
 `start_sandbox`, `stop_sandbox`, `delete_sandbox`, `list_sandbox_revisions`,
-`rollback_sandbox`, `get_sandbox_network_clip`.
+`rollback_sandbox`, `get_sandbox_effective_policy`.
 
 Semantics that bite:
-- **Policies attach inline at create time** (`policies: [...]` on the sandbox) —
-  this is how the agent gets egress, credentials, integrations, and managed
-  inference. It's a frozen attachment, not a `policy_bindings` row.
-- **Caps: one exposed port, one persistent volume.** `exposedPorts[].auth`:
+- **Policies attach to the sandbox itself** (`policyIds: [...]` — the field was
+  renamed from `policies`, which is now rejected) — this is how the agent gets
+  egress, credentials, integrations, and managed inference. These are live
+  references to shared policies, not a `policy_bindings` row; `update_sandbox
+  { policyIds }` replaces them without a restart. A sandbox can also carry its
+  own embedded `policy` and `credentials`, created in the same call.
+- **Caps: up to four exposed ports, one persistent volume.** `exposedPorts[].auth`:
   `public` = openable without a platform session (handy for a trial chat UI);
-  `private` = requires OIDC.
-- **`cpu` and `memory` are required** (K8s quantities, e.g. `cpu: "1"` / `"500m"`,
+  `private` (the default) = requires a platform sign-in with access to the project.
+- **`cpu` and `memory` are required** (K8s quantities, e.g. `cpu: "500m"`,
   `memory: "2Gi"` / `"512Mi"`) and must **not exceed** the platform's
-  `SANDBOX_CPU` / `SANDBOX_MEMORY` ceilings (default `1` / `2Gi`). `update_sandbox`
+  `SANDBOX_CPU` / `SANDBOX_MEMORY` ceilings (Helm chart default `500m` / `2Gi`,
+  set by `sandbox.k8s.cpu` / `sandbox.k8s.memory`). `update_sandbox`
   can change them — that creates a new revision and restarts the sandbox.
 - Image must have `/bin/sh` + a writable CA bundle; `FROM scratch` / non-debug
   distroless are **unsupported** (see `gotchas.md`).
-- After create, **poll `get_sandbox`** until `state` is `running` and
+- After create, **poll `get_sandbox`** until `state` is `started` and
   `exposedPorts[0].url` is populated — that URL is the agent's chat UI.
-- **Idle shutdown after 30 min** (platform-managed). `stop_sandbox` for an
+- **No idle shutdown for agent sandboxes** — they run until stopped (the
+  30-min idle shutdown applies only to `shell_*` sandboxes). `stop_sandbox` for an
   immediate cutoff (e.g. after revoking access — revocation alone doesn't kill a
-  live session).
+  running process).
 
 ## Prism launch env (set in `create_sandbox` `env`)
 The container is one agent = one `AGENT_ID` = one `/data` SQLite DB = one LLM

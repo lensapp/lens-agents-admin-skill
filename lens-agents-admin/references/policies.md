@@ -87,8 +87,9 @@ Clipping is restriction-only and happens **at resolve time**, not at save:
   the connector axis, give the ceiling its own `connectors:[…]` allow-list.
 - A project binding that asks for more than the ceiling allows is **accepted but
   clipped** — inspect with `list_policy_binding_drift` (per-binding) and
-  `get_sandbox_network_clip` (per-sandbox: blocked domains, `managedInferenceBlocked`,
-  `blockedConnectors`).
+  `get_sandbox_effective_policy` (per-sandbox: the resolved policy plus its drift —
+  `blockedDomains`, `narrowedDomains`, `blockedConnectors`, `managedInferenceBlocked`,
+  `networkUnrestrictedBlocked`, `denyAll`, `shadowedCredentials`).
 
 **Why this matters for admin agents ("Odin"):** a project-admin agent can rewrite
 its project's policies/bindings and launch sandboxes, but an org ceiling still

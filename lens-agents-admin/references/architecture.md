@@ -35,8 +35,9 @@ sandbox-token → api-token → OIDC).
   own sandbox's data; every spending-limit *mutation* stays OIDC-only.
 
 **Sandbox-as-principal (the current model):** policies attach **directly to a
-sandbox at create time** (`create_sandbox` takes `policies: [...]`, a frozen
-inline attachment). "agent_token" was renamed **`api_token`**. Two independent
+sandbox** (`create_sandbox` takes `policyIds: [...]` — live references to shared
+policies that `update_sandbox` can replace — plus an optional embedded `policy` and
+`credentials`). "agent_token" was renamed **`api_token`**. Two independent
 policy axes: **people** (user/api_token, capped by the `everyone` ceiling) and
 **sandboxes** (capped only by the `all_sandboxes` ceiling — `everyone` does
 **not** cap sandboxes). PII masking is the inverted case: it composes
@@ -73,5 +74,5 @@ image doesn't need the nftables package but **must have `/bin/sh`** and a
 **writable CA bundle** (`/etc/ssl/certs/ca-certificates.crt`) so the boundary CA
 can be appended. **`FROM scratch` and non-debug distroless images are
 unsupported** (no shell). K8s provisioner can set a `RuntimeClass` (`kata-clh`,
-`gvisor`) for microVM isolation. **Caps: at most one exposed port and one
+`gvisor`) for microVM isolation. **Caps: at most four exposed ports and one
 persistent volume per sandbox.**

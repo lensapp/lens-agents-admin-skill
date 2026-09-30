@@ -17,8 +17,8 @@ connect to the global `/mcp`), then continue with playbook 1 below.
 2. `create_project { orgId, name: "demo", displayName: "Demo" }` → note `projectId`. *(tenancy.md)*
 3. `create_policy { projectId, name: "starter", managedInference: { enabled: true, provider: "<installed-provider>" } }` → note `policyId`. *(policies.md — set the provider the platform was installed with: bedrock | azure | bedrock-mantle | openai | openrouter. **Don't copy `bedrock` blindly** — it is always selectable even with no credential behind it, and Prism's `LLM_PROVIDER` defaults to it too, so all three places "match", the stack comes up clean, and every call fails.)*
 4. `create_policy_binding { projectId, name: "starter-sandboxes", policyIds: ["<policyId>"], subjects: [{ kind: "all_sandboxes" }] }`. *(policies.md)*
-5. `create_sandbox { projectId, name: "prism-demo", image: "ghcr.io/lensapp/prism-agent:latest", command: "exec ./start.sh", cpu: "1", memory: "2Gi", env: {...}, volumes: [{mountPath:"/data"}], exposedPorts: [{name:"chat",port:3003,auth:"public"}], policies: ["<policyId>"] }`. *(agents.md — `cpu`/`memory` required, ≤ the SANDBOX_CPU/SANDBOX_MEMORY ceiling)*
-6. Poll `get_sandbox` until `state=running` and `exposedPorts[0].url` is set.
+5. `create_sandbox { projectId, name: "prism-demo", image: "ghcr.io/lensapp/prism-agent:latest", command: "exec ./start.sh", cpu: "500m", memory: "2Gi", env: {...}, volumes: [{mountPath:"/data"}], exposedPorts: [{name:"chat",port:3003,auth:"public"}], policyIds: ["<policyId>"] }`. *(agents.md — `cpu`/`memory` required, ≤ the SANDBOX_CPU/SANDBOX_MEMORY ceiling)*
+6. Poll `get_sandbox` until `state=started` and `exposedPorts[0].url` is set.
 7. **Wrap up — always end an install/onboard with a plain-language summary.** Tell the user:
    - **What you installed:** the Lens Agents platform + a running **Prism** agent (its first managed agent).
    - **How to reach each, and what each is for:** the **Lens Agents web UI** (the `config.publicUrl`, e.g. `http://localhost:3002`) to *govern the platform* — projects, policies, agents, audit — vs. the **Prism chat UI** (`exposedPorts[0].url`) to *talk to the agent*. Name this platform-vs-agent distinction explicitly; it's the #1 point of confusion.
@@ -30,7 +30,7 @@ connect to the global `/mcp`), then continue with playbook 1 below.
 2. Write a policy that grants the cluster + needed egress + inference:
    `create_policy { projectId, name: "sre", networkDefaultVerdict: "deny", allowedDomains: [...], integrations: [{type:"kubernetes",name:"prod-eks"}], managedInference: {enabled:true, provider:"..."} }`. *(policies.md)*
 3. `create_policy_binding { ..., policyIds:["<policyId>"], subjects:[{kind:"all_sandboxes"}] }`.
-4. `create_sandbox { ..., cpu, memory, policies:["<policyId>"] }`; wait for `running`. *(agents.md — `cpu`/`memory` required)*
+4. `create_sandbox { ..., cpu, memory, policyIds:["<policyId>"] }`; wait for `started`. *(agents.md — `cpu`/`memory` required)*
 5. Give it its first goal over **its own chat UI / WS** (e.g. "watch prod-eks for failing pods and report") — not the platform `shell_*` tools, which run in a fresh sandbox as the caller, not inside the agent's container. *(agents.md)*
 
 ## 3. "Integrate with <system> over MCP"
@@ -88,7 +88,7 @@ tokens + grant team access (OIDC org-admin). Ask **which project(s)** Odin manag
 > domains — so keep `allowedDomains` non-empty as above.) Odin **cannot raise or
 > remove the ceiling**: org policy/binding writes require an OIDC org-admin, and an
 > API token is never one. Use `list_policy_binding_drift` and
-> `get_sandbox_network_clip` to see what the ceiling clipped. *(policies.md — note
+> `get_sandbox_effective_policy` to see what the ceiling clipped. *(policies.md — note
 > the two axes: `all_sandboxes` caps sandboxes, `everyone`/`api_token` caps people.)*
 
 1. For each managed project, create a **dedicated** least-privilege team with
@@ -109,7 +109,7 @@ tokens + grant team access (OIDC org-admin). Ask **which project(s)** Odin manag
 6. `create_policy { projectId:<home>, name:"odin-admin", managedInference:{enabled:true, provider:"..."}, connectors:[{ connectorId:"<nexus-api id>", allowedTools:[<admin tools>], credentialId:"<cred id>" }] }`.
    The connector grant's **`credentialId`** is what makes those first-party tools
    run as the token's principal. *(policies.md)*
-7. `create_sandbox { projectId:<home>, name:"odin", image:"ghcr.io/lensapp/prism-agent:latest", command:"exec ./start.sh", cpu:"1", memory:"2Gi", env:{ LLM_PROVIDER:"..." }, volumes:[{mountPath:"/data"}], exposedPorts:[{name:"web",port:3003,auth:"private"}], policies:["<homePolicyId>"] }`; poll `get_sandbox` for the chat URL. Attaching the policy **inline** here scopes admin to *this* sandbox — don't bind it `all_sandboxes` or you elevate every sandbox in the project. Prefer `auth:"private"` (requires a platform session to reach the chat) for a project-admin agent; `"public"` only for a throwaway trial. *(agents.md — `cpu`/`memory` required)*
+7. `create_sandbox { projectId:<home>, name:"odin", image:"ghcr.io/lensapp/prism-agent:latest", command:"exec ./start.sh", cpu:"500m", memory:"2Gi", env:{ LLM_PROVIDER:"..." }, volumes:[{mountPath:"/data"}], exposedPorts:[{name:"web",port:3003,auth:"private"}], policyIds:["<homePolicyId>"] }`; poll `get_sandbox` for the chat URL. Attaching the policy **to the sandbox** here scopes admin to *this* sandbox — don't bind it `all_sandboxes` or you elevate every sandbox in the project. Prefer `auth:"private"` (requires a platform session to reach the chat) for a project-admin agent; `"public"` only for a throwaway trial. *(agents.md — `cpu`/`memory` required)*
 8. Seed the admin skill so Odin knows it's an admin — the `shell_*` tools run in a
    *fresh* sandbox as **you**, not inside Odin's container, so you can't write its
    `/data` from here. Instead **ask Odin over its chat to install the skill itself**,
@@ -167,8 +167,8 @@ at boot, so it must be real before the restart in step 5).
    `slack.com` + `*.slack.com` covers the Web API, Socket Mode (`wss-*.slack.com`),
    and `files.slack.com` — nothing else is needed. `managedInference` stays off here
    (the agent's main policy provides it). *(policies.md)*
-5. Attach the policy **inline** to the agent's sandbox alongside its existing ones:
-   `update_sandbox { …, policies:[<existing…>, "<slackPolicyId>"] }`. Attaching is
+5. Attach the policy to the agent's sandbox alongside its existing ones:
+   `update_sandbox { …, policyIds:[<existing…>, "<slackPolicyId>"] }`. Attaching is
    metadata-only (no restart), and Prism reads `SLACK_*` **at boot** — so
    `stop_sandbox` then `start_sandbox` to inject the tokens and connect. Make sure the
    **real** bot token is set first: `auth.test` runs at config load and *throws* on a
