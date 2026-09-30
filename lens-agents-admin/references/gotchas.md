@@ -21,7 +21,6 @@ Know which way each guard fails before you rely on it:
 - **Daily session reset 4 AM** local; conversation compaction keeps the **recent 20** messages.
 - Memory retention: importance **<3 AND >30 days** deleted; ≥3 kept indefinitely; summary never auto-deleted.
 - Audit API: **max 200** entries/page (cursor pagination). Public exposed-port concurrency default **32**.
-- Free tier: **100 agent-hours/month** (Standard).
 - Crypto: ephemeral per-sandbox CA **ECDSA P-256** (in-memory only); credential storage **AES-256-GCM**; tokens stored as **SHA-256** (one-way, shown once).
 
 ## Naming & shape constraints
