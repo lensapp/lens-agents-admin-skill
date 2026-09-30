@@ -23,7 +23,9 @@ sandbox-token → api-token → OIDC).
   prefix); **never org-admin**; sees the api-token-visible tool subset and can
   administer a **project** it holds **ADMIN** role on (via its team) — org-scoped
   ops stay OIDC-only. See `rbac.md`.
-- **cluster-jwt** — the cluster relay identity (`lnsc_` prefix).
+- **cluster-jwt** — the per-cluster kubectl JWT a sandbox's kubeconfig resolves
+  to (`lnsc_` prefix, 15 min). The relay itself authenticates its tunnel with an
+  `lnst_` token.
 - **sandbox** — a managed agent's identity; scoped to one project as **MEMBER**,
   **never** org-admin. On the global `/mcp` the only first-party tools visible to
   it are **three self-scoped spend/usage reads** — `get_usage_cost_summary`,
@@ -59,11 +61,13 @@ policy + audit apply — connectivity mode is a transport choice, not a trust
 choice.
 
 ## Short-lived credentials (know the TTLs)
-- **kubectl** cluster JWT: **15 minutes**, auto-rotated, impersonates
-  `agent:<name>` with `<org>/<team>` groups.
+- **kubectl** cluster JWT: **15 minutes**, auto-rotated. It impersonates
+  `sandbox:<id>` in group `<org>/<project>` for a sandbox, `agent:<tokenName>` in
+  `<org>/<team>` groups for an API token, or `oidc:<email>` for a human.
 - **EKS** token: SigV4-presigned, **capped at 900s** by AWS.
-- **AWS** STS AssumeRole: **900s (15 min)**, session-tagged (agent/org/project) →
-  flows to CloudTrail; real creds injected, **never written to sandbox disk**.
+- **AWS** STS AssumeRole: **900s (15 min)**, session-tagged (`lens:user-id`,
+  `lens:user-identity`, `lens:project-id`, `lens:project-name`, `lens:org-id`,
+  `lens:org-name`, `lens:connection-name`) → flows to CloudTrail; real creds injected, **never written to sandbox disk**.
 
 ## Sandbox runtime shape
 A supervisor (PID 1) + static `nft` are side-loaded into `/.lens/`; the user

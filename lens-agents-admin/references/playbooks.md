@@ -26,7 +26,7 @@ connect to the global `/mcp`), then continue with playbook 1 below.
 
 ## 2. "I want a Kubernetes SRE agent"
 
-1. Connect the cluster — **three steps**: `create_cluster { projectId, name: "prod-eks", displayName, relayUrl: "tunnel://" }` (capture the one-time `tunnelToken`) → **deploy the relay into that cluster** via the `nexus-kube-relay` Helm chart → **apply cluster RBAC** binding a Role to the impersonated identity (group `<org>/<team>` or user `agent:<tokenName>`), or the agent authenticates but can do nothing. Full runbook incl. the local-trial in-cluster tunnel URL (`ws://localhost:...` fails from a pod) and the RBAC manifest: *(connections.md)*
+1. Connect the cluster — **three steps**: `create_cluster { projectId, name: "prod-eks", displayName, relayUrl: "tunnel://" }` (capture the one-time `tunnelToken`) → **deploy the relay into that cluster** via the `nexus-kube-relay` Helm chart → **apply cluster RBAC** binding a Role to the impersonated identity (a sandbox is user `sandbox:<sandboxId>` in group `<org>/<project>`; an API token is user `agent:<tokenName>` in group `<org>/<team>`), or the agent authenticates but can do nothing. Full runbook incl. the local-trial in-cluster tunnel URL (`ws://localhost:...` fails from a pod) and the RBAC manifest: *(connections.md)*
 2. Write a policy that grants the cluster + needed egress + inference:
    `create_policy { projectId, name: "sre", networkDefaultVerdict: "deny", allowedDomains: [...], integrations: [{type:"kubernetes",name:"prod-eks"}], managedInference: {enabled:true, provider:"..."} }`. *(policies.md)*
 3. `create_policy_binding { ..., policyIds:["<policyId>"], subjects:[{kind:"all_sandboxes"}] }`.

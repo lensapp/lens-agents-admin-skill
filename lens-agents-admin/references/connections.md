@@ -9,9 +9,12 @@ policy's `integrations[]` (see `policies.md`).
 ## Kubernetes clusters
 
 Agents reach a cluster through the platform's **Kubernetes relay** — a tunnel,
-not a direct connection to the cluster API. The platform injects a short-lived
-(~60s) impersonated JWT per request; the agent never holds a kubeconfig or any
-long-lived cluster credential. **Connecting a cluster is two steps: (1) register
+not a direct connection to the cluster API. The sandbox gets a kubeconfig
+(`KUBECONFIG=/tmp/nexus-kubeconfig`) pointing at the platform, but its token is a
+placeholder: the boundary proxy swaps it for a 15-minute cluster JWT (`lnsc_`,
+refreshed every 10 minutes), and the platform signs a short-lived (60 s)
+impersonation JWT for each request it forwards to the relay. The agent never
+holds a long-lived cluster credential. **Connecting a cluster is two steps: (1) register
 it on the platform, (2) deploy the relay _into the target cluster_.** Registering
 alone does nothing until the relay is running — this is the step that isn't in
 any API response, so it's spelled out below.
@@ -60,15 +63,18 @@ real Role to the exact identity the platform sends:
 
 | Principal | Identity string the relay sends |
 |-----------|--------------------------------|
-| Managed / API-token agent | user `agent:<apiTokenName>` (the token's name, not a free-form agent name) |
+| Managed agent (sandbox) | user `sandbox:<sandboxId>`, group `<orgName>/<projectName>` |
+| API-token agent | user `agent:<apiTokenName>` (the token's name, not a free-form agent name) |
 | Human (OIDC) | user `oidc:<email>` |
-| Team | group `<orgName>/<teamName>` — one per team, **no prefix** |
+| Team (OIDC / API-token principals) | group `<orgName>/<teamName>` — one per team, **no prefix** |
 
 These land verbatim in the `Impersonate-User` / `Impersonate-Group` headers, so
 the RBAC subject `name` must match the string **exactly**.
 
 **Recommended — bind to the team group** (every agent on that team inherits the
-access; group membership follows team assignment on the platform):
+access; group membership follows team assignment on the platform). Managed agents
+(sandboxes) carry no team group — bind their `<orgName>/<projectName>` group, or
+user `sandbox:<sandboxId>` for one sandbox:
 
 ```yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -121,9 +127,10 @@ its policy (see `policies.md`).
 
 ## AWS connections
 
-Agents call AWS through the proxy, which performs **STS AssumeRole** with
-session tags on every request — no long-lived AWS keys ever reach the agent
-itself, only the platform holds them.
+Agents call AWS through the proxy, which performs **STS AssumeRole** (900 s
+sessions, cached and refreshed on a 10-minute cycle) with session tags — the
+agent holds only placeholders and re-signs nothing itself; no long-lived AWS keys
+ever reach it, only the platform holds them.
 
 Tools: `list_aws_connections`, `get_aws_connection`, `create_aws_connection`,
 `update_aws_connection`, `delete_aws_connection`.
