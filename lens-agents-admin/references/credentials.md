@@ -12,10 +12,20 @@ Tools: `list_credentials`, `get_credential`, `create_credential`,
 returned by any read call.
 
 Notes:
-- `injections[]` is **required** — a credential must declare where it's
-  injected. Each injection binds the secret to one domain + header, with the
-  header value templated (a `{value}` placeholder substituted with the
-  secret at request time).
+- `injections[]` is **required** (it may be empty) — it declares where the
+  credential is injected. Each injection binds the secret to one domain (bare
+  hostname: no scheme, port, or wildcard) + header, with the header value
+  templated: `headerFormat` **must** contain `{value}` (a format without it is
+  rejected on write). `{base64:<prefix>{value}}` base64-encodes the prefix plus
+  the secret, e.g. `Basic {base64:user:{value}}`. One injection per
+  (domain, header) — a duplicate is rejected.
+- Optional `bodyField` also writes the bare value into that field of an
+  `application/x-www-form-urlencoded` body — only where the field is already
+  present, on requests the header injection matches. Needed for SDKs that send
+  the token twice (Slack's sends it as `token` in the body too).
+- `rules` omitted (or empty) = inject on all paths.
+- Reads show `headerFormat` in full only to project **ADMIN**s; everyone else
+  gets `[REDACTED]` and `headerFormatRedacted: true`.
 - Scope injection tightly with per-injection method/path rules when possible.
 - A credential only reaches an agent when **both** sides agree: the agent's
   policy has a matching `credentials[]` ref *and* the same domain is allowed
