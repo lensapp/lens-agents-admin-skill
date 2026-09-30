@@ -158,12 +158,14 @@ at boot, so it must be real before the restart in step 5).
      `chat.postEphemeral`, `chat.delete`, `reactions.remove`, `team.info`, `views.open`,
      `views.update`. (`bots.info` only if you set the optional `SLACK_EXPECTED_APP_ID`.)
 
-   `create_credential { projectId, name:"<agent>-slack-xoxb", value:"<xoxb-…>", injections:[ { domain:"slack.com", headerName:"Authorization", headerFormat:"Bearer {value}", rules:[ POST /api/auth.test, /api/chat.postMessage, /api/chat.update, /api/conversations.info, /api/conversations.replies, /api/reactions.add, /api/users.info, /api/files.getUploadURLExternal, /api/files.completeUploadExternal, …plus any agent-initiated methods above ] }, { domain:"files.slack.com", headerName:"Authorization", headerFormat:"Bearer {value}", rules:[ GET /files-pri/**, POST /upload/** ] } ] }`.
-   Least-privilege: grant only the groups the agent needs. If the agent enumerates
+   `create_credential { projectId, name:"<agent>-slack-xoxb", value:"<xoxb-…>", injections:[ { domain:"slack.com", headerName:"Authorization", headerFormat:"Bearer {value}", bodyField:"token", rules:[ POST /api/auth.test, /api/chat.postMessage, /api/chat.update, /api/conversations.info, /api/conversations.replies, /api/reactions.add, /api/users.info, /api/files.getUploadURLExternal, /api/files.completeUploadExternal, …plus any agent-initiated methods above ] }, { domain:"files.slack.com", headerName:"Authorization", headerFormat:"Bearer {value}", rules:[ GET /files-pri/**, POST /upload/** ] } ] }`.
+   The `slack.com` injections carry `bodyField:"token"` because the Slack SDK also
+   sends the token in the form body, and Slack reads that one first — without it
+   every call returns `invalid_auth`. Least-privilege: grant only the groups the agent needs. If the agent enumerates
    channels/DMs it needs `conversations.list`/`users.conversations` — easy to miss,
    since the adapter never calls them (see `gotchas.md`). *(credentials.md)*
 3. App-token credential — one method:
-   `create_credential { projectId, name:"<agent>-slack-xapp", value:"<xapp-…>", injections:[ { domain:"slack.com", headerName:"Authorization", headerFormat:"Bearer {value}", rules:[ POST /api/apps.connections.open ] } ] }`. *(credentials.md)*
+   `create_credential { projectId, name:"<agent>-slack-xapp", value:"<xapp-…>", injections:[ { domain:"slack.com", headerName:"Authorization", headerFormat:"Bearer {value}", bodyField:"token", rules:[ POST /api/apps.connections.open ] } ] }`. *(credentials.md)*
 4. Policy — map both creds to the env vars Prism reads and open Slack egress:
    `create_policy { projectId, name:"<agent>-slack", credentials:[ {credentialName:"<agent>-slack-xoxb", envVarKey:"SLACK_BOT_TOKEN"}, {credentialName:"<agent>-slack-xapp", envVarKey:"SLACK_APP_TOKEN"} ], allowedDomains:[ {pattern:"slack.com", verdict:"allow", transport:"direct"}, {pattern:"*.slack.com", verdict:"allow", transport:"direct"} ] }`.
    `slack.com` + `*.slack.com` covers the Web API, Socket Mode (`wss-*.slack.com`),
