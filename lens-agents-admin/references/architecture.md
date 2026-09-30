@@ -7,7 +7,7 @@
 - **Project-scoped `/projects/:projectId/mcp`** — **only** that project's
   upstream MCP connectors, **plus three self-scoped spend/usage *read* tools** a
   sandbox may call on its own budget — `get_usage_cost_summary`,
-  `get_usage_cost_timeseries`, `get_spending_limit_status` (NEXUS-100). **No other
+  `get_usage_cost_timeseries`, `get_spending_limit_status`. **No other
   first-party/admin tools**, and every spending-limit *mutation* stays off this
   endpoint. Sandboxes are wired to
   this endpoint on purpose: a managed agent can reach its project's tool surface
@@ -32,7 +32,7 @@ sandbox-token → api-token → OIDC).
   **never** org-admin. No first-party admin tool is visible to it **except three
   self-scoped spend/usage reads** — `get_usage_cost_summary`,
   `get_usage_cost_timeseries`, `get_spending_limit_status` — which return only its
-  own sandbox's data (NEXUS-100); every spending-limit *mutation* stays OIDC-only.
+  own sandbox's data; every spending-limit *mutation* stays OIDC-only.
 
 **Sandbox-as-principal (the current model):** policies attach **directly to a
 sandbox at create time** (`create_sandbox` takes `policies: [...]`, a frozen

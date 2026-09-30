@@ -24,7 +24,7 @@ An **API token is never an org admin**, but it *can* administer a **project** it
 holds ADMIN role on. Add the token to a team and set that team's project role to
 **ADMIN** (`set_team_project_access`); then, over the **global `/mcp`**, it can
 create/update/delete that project's **policies, credentials, sandboxes, and
-project-scoped policy bindings** (shipped in NEXUS-96). This is how you provision
+project-scoped policy bindings**. This is how you provision
 a **per-project admin agent** ("Odin") that runs without a human session.
 
 What a project-admin token **cannot** do — these are org-scoped and **OIDC-only**:
@@ -42,7 +42,7 @@ clips it (see `policies.md`).
 
 A managed agent on its **default sandbox identity** is capped at project
 **MEMBER** regardless of team role — read/observe (**including its *own*
-spend/usage/limit-status over MCP, self-scoped — NEXUS-100**), manage clusters/AWS,
+spend/usage/limit-status over MCP, self-scoped**), manage clusters/AWS,
 run in-sandbox shell tools, but **not** create policies/credentials/sandboxes.
 
 To make a sandbox a **project admin** ("Odin"), attach a **project-admin API
