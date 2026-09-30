@@ -32,7 +32,7 @@ Know which way each guard fails before you rely on it:
 - Sandbox workspace root is **`/home/sandbox`**.
 
 ## Behavior traps
-- **A sandbox on the project `/mcp` sees no admin tools** — by design (see `architecture.md`), **except three self-scoped spend/usage reads** (`get_usage_cost_summary`, `get_usage_cost_timeseries`, `get_spending_limit_status`), which return only its own budget (NEXUS-100). Administer via the global `/mcp`.
+- **A sandbox on the project `/mcp` sees no admin tools** — by design (see `architecture.md`), **except three self-scoped spend/usage reads** (`get_usage_cost_summary`, `get_usage_cost_timeseries`, `get_spending_limit_status`), which return only its own budget. Administer via the global `/mcp`.
 - **`allowedTools: []` on a connector ref = deny all**, not allow all.
 - **`piiMasking.failOpen: false` = fail-closed** (blocks) — the flag name inverts easily.
 - **Realtime voice is served UNMASKED** — a policy carrying `piiMasking` is simply not applied to an OpenAI realtime session; the only trace is `piiMaskingSkipped` on the audit records. Set masking, enable voice, and the audio leg is unmasked while the HTTP leg fails closed (see `inference.md`).

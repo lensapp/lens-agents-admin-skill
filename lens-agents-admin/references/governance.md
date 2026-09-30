@@ -11,7 +11,7 @@ heartbeats skip gracefully instead of erroring.
 Tools: `list_spending_limits`, `get_spending_limit_status`,
 `set_spending_limit`, `remove_spending_limit`.
 
-**Visibility (NEXUS-100):** the three *read* tools — `get_usage_cost_summary`,
+**Visibility:** the three *read* tools — `get_usage_cost_summary`,
 `get_usage_cost_timeseries`, `get_spending_limit_status` — are visible to `oidc`,
 `api-token`, **and `sandbox`** principals; a sandbox call is **self-scoped** —
 clamped to its own sandboxId within its own project regardless of any supplied
