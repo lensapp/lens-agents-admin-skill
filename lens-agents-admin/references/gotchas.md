@@ -26,7 +26,7 @@ Know which way each guard fails before you rely on it:
 
 ## Naming & shape constraints
 - **Slug regex** `^[a-z0-9][a-z0-9-]*[a-z0-9]$` (lowercase alphanumeric + hyphens, no leading/trailing hyphen) for connection/resource/server names.
-- Sandbox: **at most one exposed port and one persistent volume**. Exposed-port `auth`: `public` (openable without a session) vs `private` (needs OIDC).
+- Sandbox: **at most four exposed ports and one persistent volume**. Exposed-port `auth`: `public` (openable without a session) vs `private` (the default; needs a platform sign-in with access to the project).
 - Sandbox images **must have `/bin/sh` and a writable CA bundle**; **`FROM scratch` and non-debug distroless are unsupported**.
 - Reserved connector name **`nexus-api`** (the platform's own system MCP row) — don't create/rename/delete it; `create_mcp_server` refuses to shadow it.
 - Sandbox workspace root is **`/home/sandbox`**.
