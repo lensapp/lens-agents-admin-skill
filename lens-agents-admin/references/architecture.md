@@ -40,8 +40,9 @@ policies that `update_sandbox` can replace — plus an optional embedded `policy
 `credentials`). "agent_token" was renamed **`api_token`**. Two independent
 policy axes: **people** (user/api_token, capped by the `everyone` ceiling) and
 **sandboxes** (capped only by the `all_sandboxes` ceiling — `everyone` does
-**not** cap sandboxes). PII masking is the inverted case: it composes
-**additively** (a stricter lower layer tightens masking, isn't capped).
+**not** cap sandboxes). PII masking is the inverted case: the ceiling
+doesn't cap it — a project's `piiMasking` **replaces** the org's, and the org's
+applies only where the project sets none.
 
 ## Credential injection & egress
 Egress is enforced at the sandbox network boundary: a policy-aware proxy

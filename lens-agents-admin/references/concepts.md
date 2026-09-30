@@ -51,9 +51,10 @@ names. **There is no knob to disable it.** First-match-wins; default action deny
   is the **hard boundary**. "How safe is level 5?" is answered by the policy, not
   the autonomy setting.
 
-## Team is the policy unit; org is the ceiling
-Policies apply at **team** level (all agents in a team share them). Projects grant
-infrastructure scope. **Org policy is a restriction-only ceiling** — lower layers
+## Bindings apply policy; org is the ceiling
+Policies apply through **bindings** to subjects — `everyone`, a `user`, an
+`api_token`, or `all_sandboxes` — at org or project scope, or attach directly to a
+sandbox. Projects grant infrastructure scope. **Org policy is a restriction-only ceiling** — lower layers
 can only *narrow* it, never expand. Excess is clipped at resolve time and surfaced
 as drift (not rejected on save).
 
