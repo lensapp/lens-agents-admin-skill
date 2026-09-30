@@ -96,9 +96,11 @@ A competent admin knows the platform's own stated caveats:
 - Default runtime is **containers (shared host kernel)** → for syscall-level
   isolation, deploy the sandbox in a **microVM** (Kata/gVisor). Local minikube is
   container-only.
-- **No seccomp** by default.
-- **Token revocation doesn't kill active sessions** — the 30-min idle timeout
-  bounds the window; **stop the sandbox** for immediate termination.
+- Kubernetes sandbox pods run the **`RuntimeDefault` seccomp** profile — the
+  runtime's default filter, not a platform-tuned one.
+- **Revocation doesn't stop a running process** — a revoked API token is refused
+  on its next request (it is re-checked on every call), but a sandbox keeps
+  running; **stop the sandbox** for immediate termination.
 - **Tenant isolation is application-level** (org-scoped FKs + app authz), not DB
   row-level.
 - **Autonomy enforcement is prompt-layer** (see above) — bypassable; policy is
