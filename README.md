@@ -79,9 +79,11 @@ A managed Prism agent can carry this skill too, so it can explain the platform
 and do its project-scoped work. Drop the bundle into the sandbox's skills dir —
 the catalog hot-reloads on the next turn (no restart):
 
-- **Via the platform (recommended):** `mcp__lens-agents__shell_write_file` the
-  bundle into `/data/skills/lens-agents-admin/` in the running sandbox, or seed
-  the `/data` volume before launch.
+- **Via the agent (recommended):** ask the running agent over its own chat to
+  install the skill into `/data/skills/lens-agents-admin/` from this repo, or seed
+  the `/data` volume before launch. (The platform `shell_*` tools run in a fresh
+  sandbox as the caller, not inside the agent's container, so they can't write
+  there.)
 - **Or** point `PRISM_SKILLS_DIR` at a pre-seeded mount.
 
 Give it an admin persona (no code) with the agent's own tools: `rename_self`
@@ -90,11 +92,13 @@ Give it an admin persona (no code) with the agent's own tools: `rename_self`
 > **Making a seeded Prism a project admin ("Odin").** A sandbox's default
 > identity is capped at project **MEMBER**, so a seeded Prism can explain the
 > platform and do project-scoped work but isn't an admin out of the box. To make
-> it one, attach a **self-reference `/mcp` connector** with a **project-admin API
-> token** as its policy-binding credential: the platform dispatches that
-> connector's first-party tools as the **token's** principal, so Odin gets native
-> admin tools (`create_policy`, `create_sandbox`, …) while the token stays
-> server-side — **never in its env**. No prism-agent code, no env token. Odin's
+> it one, grant it the project's built-in **`nexus-api`** connector with a
+> **project-admin API token** as the connector credential (`connectors[].credentialId`
+> in its policy): the platform dispatches that connector's first-party tools as the
+> **token's** principal, so Odin gets native admin tools (`create_policy`,
+> `create_sandbox`, …) while the token stays server-side — **never in its env**. It
+> gets only the api-token-visible tools; OIDC-only steps, including creating that
+> credential, need a human. No prism-agent code, no env token. Odin's
 > authority is exactly the token's scope (scope it least-privilege;
 > `revoke_api_token` is the kill switch). Full runbook:
 > `lens-agents-admin/references/playbooks.md` playbook 6.
