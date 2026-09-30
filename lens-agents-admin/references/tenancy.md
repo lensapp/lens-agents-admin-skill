@@ -18,6 +18,21 @@ to the web UI. `create_org` works on an **OIDC session** (the coding-agent
 onboarding path), because an org is a human's tenant; it's the one creation an
 **API-token** principal can't do (an admin agent must have its org already).
 
+**Promote or demote an org admin** (REST only, no MCP tool): `PATCH
+/v1/orgs/{orgId}/members/{userId}` with `{ "role": "ADMIN" | "MEMBER" }`. Needs an
+org admin; the last admin can't be demoted.
+
+**Emergency halt** (REST only, no MCP tool) — the org-wide stop switch:
+- `POST /v1/orgs/{orgId}/halt` with `{ "reason": "…" }` (org admin; reason
+  required, max 500 chars): refuses new sandbox-mediated egress and requests on
+  sandbox tokens (including connector calls), refuses managed inference for
+  **every** principal, cuts open inference streams, and pushes a deny-all network
+  policy to every sandbox. Sandboxes keep running; nothing is destroyed.
+  Engaging an already-halted org is not an error.
+- `GET /v1/orgs/{orgId}/halt` (any org member) — whether a halt is in force, plus
+  the history.
+- `DELETE /v1/orgs/{orgId}/halt` (org admin) — lift it. Halts stay in the history.
+
 ## Projects
 
 Tools: `list_projects`, `get_project`, `get_project_public_key`,

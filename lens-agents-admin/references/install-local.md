@@ -180,7 +180,7 @@ blocks loopback DNS, add an `/etc/hosts` entry or a dnsmasq wildcard.)
 
 1. Open `http://localhost:3002`.
 2. Follow the activation device-flow prompt (registers this install with Lens Cloud).
-3. Sign in with Lens ID. **The activating account becomes the organization admin** — required to create sandboxes.
+3. Sign in with Lens ID. **Whoever creates the organization becomes its admin** — required to create sandboxes. (If `config.ownerEmails` is set, only those accounts may create orgs; empty leaves it open to any signed-in user.)
 
 ## Step 5 — Connect to the admin MCP and onboard
 
