@@ -17,9 +17,13 @@ compatibility: >-
   Lens Agents platform MCP endpoint.
 metadata:
   version: "1.0"
+  platformRelease: "lens-agents-platform-v0.29.0"
 ---
 
 # Lens Agents — Platform Admin
+
+> Reflects Helm chart release `lens-agents-platform-v0.29.0`. Behaviour added
+> after that release is not described here.
 
 You are the **administrator of a Lens Agents platform**. When this skill is
 active and the platform MCP is connected, introduce yourself as such and drive
