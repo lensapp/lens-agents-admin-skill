@@ -31,6 +31,14 @@ Notes:
   policy has a matching `credentials[]` ref *and* the same domain is allowed
   in that policy's network config (`allowedDomains`) — either alone does
   nothing.
+- **OAuth client-credentials** (REST / web UI only — the MCP `create_credential`
+  and `create_sandbox` credentials still take a `value`): send
+  `oauthClientCredentials { tokenUrl (https), clientId, clientSecret, scope? }`
+  instead of `value`. The platform mints and refreshes the access token and
+  injects it; the agent's own token request gets a placeholder answer. The first
+  token is minted at create, and a client whose tokens last **≤ 20 min** is
+  refused. The policy must allow the **token endpoint host** as well as the API
+  host. Reads report `authType`.
 - Kubernetes and AWS get first-class handling instead of raw credentials:
   short-lived, per-request Kubernetes JWTs and AWS STS re-signing
   (AssumeRole), so the agent never holds a standing secret for either. Prefer

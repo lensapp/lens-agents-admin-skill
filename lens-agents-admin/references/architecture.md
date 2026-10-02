@@ -2,13 +2,13 @@
 
 ## Two MCP endpoints (and why it matters)
 - **Global `/mcp`** — the **first-party admin tools** (projects, policies,
-  sandboxes, connectors, credentials, spending, audit, shell) **plus** the
+  sandboxes, connectors, credentials, spending, audit) **plus** the
   org-scoped upstream connector aggregator. **This is where you administer.**
 - **Project-scoped `/projects/:projectId/mcp`** — **only** that project's
   upstream MCP connectors. **No first-party/admin tools at all.** Sandboxes are wired to
   this endpoint on purpose: a managed agent can reach its project's tool surface
-  **without being able to drive its own sandbox over MCP** (prevents recursive
-  `shell_exec`/self-administration loops). A sandbox token that tries another
+  **without being able to drive its own sandbox over MCP** (prevents
+  self-administration loops). A sandbox token that tries another
   `projectId` in the path is rejected 403.
 
 Consequence: **an agent connected to the project endpoint will not see admin

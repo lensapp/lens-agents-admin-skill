@@ -96,10 +96,8 @@ helm install lens-agents oci://ghcr.io/lensapp/lens-agents \
 - The key is all you need. Both wire formats ride it, so a Claude-Code-shaped
   and an OpenAI-SDK-shaped agent both get a managed endpoint, and either can
   drive any model it routes.
-- Optional `--set inference.openrouter.model="<vendor/model>"` seeds the
-  sandbox's `ANTHROPIC_MODEL` (default `anthropic/claude-sonnet-5`). **Prism
-  ignores it** — Prism reads `OPENROUTER_MODEL_ID` (default
-  `openai/gpt-5.6-sol`) and keeps memory embeddings **off** on this backend.
+- The platform seeds no model: an Anthropic-SDK agent needs `ANTHROPIC_MODEL`
+  (`<vendor/model>`) in its policy env.
 
 **AWS Bedrock (needs a key, or an IAM role on EKS):** same three shared flags, plus:
 ```bash
@@ -128,18 +126,18 @@ helm install lens-agents oci://ghcr.io/lensapp/lens-agents \
   suffix off (the proxy appends `/anthropic`). Copy the host from the Claude
   deployment's Target URI.
 - `inference.azure.token` = that deployment's Key (sent as `api-key`).
-- Optional `--set inference.azure.anthropic.model="<deployment>"` (default `claude-opus-4-8`).
+- The platform seeds no model: set `ANTHROPIC_MODEL` (the deployment name) in
+  the policy env for Anthropic-SDK agents.
 
 **LiteLLM (your own LiteLLM proxy):** same three shared flags, plus:
 ```bash
   --set inference.litellm.baseUrl="https://litellm.example.com" \
-  --set inference.litellm.token="<litellm-key>" \
-  --set inference.litellm.model="<your-litellm-model-name>"
+  --set inference.litellm.token="<litellm-key>"
 ```
 - `baseUrl` = the proxy root (a trailing `/v1` is accepted); must be `https`.
-  `baseUrl` and `token` must be set together or the install fails.
-- `model` has **no default** — LiteLLM model names are yours. Anthropic-SDK
-  agents need it (or `ANTHROPIC_MODEL` in the policy env) to send a request.
+  A `token` (or `forwardTags`) without `baseUrl` fails the install.
+- The platform seeds no model, and LiteLLM model names are yours: Anthropic-SDK
+  agents need `ANTHROPIC_MODEL` in the policy env to send a request.
 - Optional `forwardTags: true` tags each call `project:<org-slug>/<project-slug>`
   so LiteLLM's spend reports break down by project. Leave it off if the proxy sets
   `router_settings.enable_tag_filtering` (it refuses tags no deployment has).
@@ -147,12 +145,16 @@ helm install lens-agents oci://ghcr.io/lensapp/lens-agents \
   `litellm_settings.include_cost_in_streaming_usage: true` and give every model a
   price, or that spend counts against no limit.
 
-**Provider availability (how the platform decides what's offered):** Bedrock is
-**always** available (falls back to the AWS default credential chain if no
-token); **Azure** appears only when its base URL+token are set; **Bedrock
-Mantle** (OpenAI/Anthropic-compatible off one Bedrock key) appears only when a
-Bedrock token is set; **OpenAI** and **OpenRouter** each appear only when their
-own token is set; **LiteLLM** appears only when its base URL + token are set. `GET /v1/inference/providers` reports the live set.
+**Provider availability (how the platform decides what's offered):** a backend
+needs to be served and to have a key. Bedrock, **Bedrock Mantle**, **OpenAI** and
+**OpenRouter** are always served; **Azure** and **LiteLLM** only when their base
+URL is set. The key is the deployment token here (Bedrock falls back to the AWS
+default credential chain; Mantle needs a real Bedrock token) — or the org's own:
+**every deployment token is optional**, because an org admin can set the org's
+inference key per backend on the **Inference Keys** page, and the org key wins.
+`inference.deploymentKeyFallback: false` stops orgs without their own key from
+using the deployment's. `GET /v1/inference/providers` reports what an org without
+its own key can use (see `inference.md`).
 
 > Keep tokens out of shell history: `--set inference.<provider>.existingSecret=<name>`
 > (default keys `NEXUS_BEDROCK_TOKEN` / `NEXUS_AZURE_TOKEN` /
@@ -251,4 +253,6 @@ This trial is deliberately minimal: container isolation, port-forward access, a
 bundled DB, a single install-time inference credential. Production adds microVM
 sandbox isolation (Kata/gVisor runtime classes), real ingress + TLS, a managed
 database, RBAC, and hardened credential management — a guided-evaluation
-engagement, not self-serve.
+engagement, not self-serve. The chart can also deploy the Lens Agents client API
+as a subchart (`bff.enabled`, off by default; enabling it requires
+`bff.tokenExchange.clientId` and `bff.tokenExchange.existingSecret`).
