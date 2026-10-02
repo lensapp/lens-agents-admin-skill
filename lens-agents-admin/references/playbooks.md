@@ -15,7 +15,7 @@ connect to the global `/mcp`), then continue with playbook 1 below.
 
 1. `list_orgs` → pick the org id. **If it's empty** (common on a fresh install): you're on an OIDC session here, so **ask the user for an org name and `create_org { name, displayName }` yourself**, then use its id — don't send them to the UI. (Only an API-token principal must defer org creation to a human.) *(tenancy.md)*
 2. `create_project { orgId, name: "demo", displayName: "Demo" }` → note `projectId`. *(tenancy.md)*
-3. `create_policy { projectId, name: "starter", managedInference: { enabled: true, provider: "<installed-provider>" } }` → note `policyId`. *(policies.md — set the provider the platform was installed with: bedrock | azure | bedrock-mantle | openai | openrouter | litellm. **Don't copy `bedrock` blindly** — it is always selectable even with no credential behind it, and Prism's `LLM_PROVIDER` defaults to it too, so all three places "match", the stack comes up clean, and every call fails.)*
+3. `create_policy { projectId, name: "starter", managedInference: { enabled: true, provider: "<installed-provider>" } }` → note `policyId`. *(policies.md — set the provider the platform was installed with: bedrock | azure | bedrock-mantle | openai | openrouter | litellm. **Don't copy `bedrock` blindly** — it is always selectable even with no credential behind it, and Prism's `LLM_PROVIDER` defaults to it too, so all three places "match", the stack comes up clean, and every call fails. `list_inference_providers { orgId }` shows which backends this org can actually use and whose key each runs on.)*
 4. `create_policy_binding { projectId, name: "starter-sandboxes", policyIds: ["<policyId>"], subjects: [{ kind: "all_sandboxes" }] }`. *(policies.md)*
 5. `create_sandbox { projectId, name: "prism-demo", image: "ghcr.io/lensapp/prism-agent:latest", command: "exec ./start.sh", cpu: "500m", memory: "2Gi", env: {...}, volumes: [{mountPath:"/data"}], exposedPorts: [{name:"chat",port:3003,auth:"public"}], policyIds: ["<policyId>"] }`. *(agents.md — `cpu`/`memory` required, ≤ the SANDBOX_CPU/SANDBOX_MEMORY ceiling)*
 6. Poll `get_sandbox` until `state=started` and `exposedPorts[0].url` is set.
@@ -31,7 +31,7 @@ connect to the global `/mcp`), then continue with playbook 1 below.
    `create_policy { projectId, name: "sre", networkDefaultVerdict: "deny", allowedDomains: [...], integrations: [{type:"kubernetes",name:"prod-eks"}], managedInference: {enabled:true, provider:"..."} }`. *(policies.md)*
 3. `create_policy_binding { ..., policyIds:["<policyId>"], subjects:[{kind:"all_sandboxes"}] }`.
 4. `create_sandbox { ..., cpu, memory, policyIds:["<policyId>"] }`; wait for `started`. *(agents.md — `cpu`/`memory` required)*
-5. Give it its first goal over **its own chat UI / WS** (e.g. "watch prod-eks for failing pods and report") — not the platform `shell_*` tools, which run in a fresh sandbox as the caller, not inside the agent's container. *(agents.md)*
+5. Give it its first goal over **its own chat UI / WS** (e.g. "watch prod-eks for failing pods and report") — no platform tool reaches inside the agent's container. *(agents.md)*
 
 ## 3. "Integrate with <system> over MCP"
 
@@ -112,9 +112,8 @@ tokens + grant team access (OIDC org-admin). Ask **which project(s)** Odin manag
    run as the token's principal. Only **api-token-visible** tools exist in the
    `nexus-api` catalog, so those are the only names `allowedTools` can usefully list. *(policies.md)*
 7. `create_sandbox { projectId:<home>, name:"odin", image:"ghcr.io/lensapp/prism-agent:latest", command:"exec ./start.sh", cpu:"500m", memory:"2Gi", env:{ LLM_PROVIDER:"..." }, volumes:[{mountPath:"/data"}], exposedPorts:[{name:"web",port:3003,auth:"private"}], policyIds:["<homePolicyId>"] }`; poll `get_sandbox` for the chat URL. Attaching the policy **to the sandbox** here scopes admin to *this* sandbox — don't bind it `all_sandboxes` or you elevate every sandbox in the project. Prefer `auth:"private"` (requires a platform session to reach the chat) for a project-admin agent; `"public"` only for a throwaway trial. *(agents.md — `cpu`/`memory` required)*
-8. Seed the admin skill so Odin knows it's an admin — the `shell_*` tools run in a
-   *fresh* sandbox as **you**, not inside Odin's container, so you can't write its
-   `/data` from here. Instead **ask Odin over its chat to install the skill itself**,
+8. Seed the admin skill so Odin knows it's an admin — no platform tool writes into
+   Odin's container, so you can't write its `/data` from here. Instead **ask Odin over its chat to install the skill itself**,
    giving it the repo link `https://github.com/lensapp/lens-agents-admin-skill`.
    First add the egress its install path needs to Odin's policy `allowedDomains`
    (public repo — just domains, no credential, so this is *not* the playbook-4

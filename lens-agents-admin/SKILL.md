@@ -17,7 +17,7 @@ compatibility: >-
   Lens Agents platform MCP endpoint.
 metadata:
   version: "1.0"
-  platformRelease: "lens-agents-platform-v0.29.0"
+  platformRelease: "lens-agents-platform-v0.30.0"
 ---
 
 # Lens Agents — Platform Admin
@@ -129,7 +129,7 @@ hot-load.
 | Understand *why* the platform works this way | `references/concepts.md` |
 | Know the platform internals (MCP endpoints, principals, proxies, network) | `references/architecture.md` |
 | Write policies + bindings correctly | `references/policies.md` |
-| Set up managed inference / providers | `references/inference.md` |
+| Set up managed inference / providers (incl. per-org inference keys) | `references/inference.md` |
 | Inject credentials; connect K8s/AWS/GitHub | `references/credentials.md`, `references/connections.md` |
 | Wire upstream MCP servers | `references/mcp-connectors.md` |
 | Connect an agent to Slack (two tokens, Socket Mode) | `references/playbooks.md`, `references/agents.md` |

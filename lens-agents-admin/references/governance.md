@@ -26,8 +26,8 @@ A sandbox's status read includes its **project ceiling** as well as its own row
 and the org's, because that ceiling is part of the budget it actually has. That
 does mean a sandbox can see project-aggregate spend, not only its own.
 
-Being OIDC-typed is **not** enough to mutate a limit. A shell sandbox token
-replays its creator's whole OIDC context, and an API token can hold team ADMIN
+Being OIDC-typed is **not** enough to mutate a limit. A user-issued sandbox
+token (`POST /v1/projects/{projectId}/sandbox-tokens`) replays its creator's whole OIDC context, and an API token can hold team ADMIN
 on a project — either would let the capped party lift its own cap. Mutations
 therefore require a session that is not sandbox-mediated; status reads are
 unaffected (`list_spending_limits` is refused from inside a sandbox).

@@ -75,8 +75,8 @@ on** and those teams' **project roles**:
   bindings, over the **global `/mcp`**. This is how you provision a per-project
   admin agent ("Odin").
 - **Project MEMBER** (`set_team_project_access` takes the role explicitly):
-  read/observe, list/get clusters and AWS connections, run in-sandbox shell — but
-  not create policies/sandboxes or add clusters/AWS connections.
+  read/observe, list/get clusters and AWS connections — but not open a sandbox
+  terminal (ADMIN only), create policies/sandboxes, or add clusters/AWS connections.
 
 Org-scoped actions (create org/project, mint/revoke tokens, org-level policies &
 bindings, team CRUD, project lifecycle) always require an **org-admin human

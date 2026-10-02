@@ -56,13 +56,15 @@ secrets into a credential. The catalog is a JSON Secret mounted by the chart —
     "authorizationServerUrl": "https://…", "tokenUrl": "https://…",
     "clientId": "…", "clientSecret": "…",
     "upstreamUrls": ["https://mcp.example.com/mcp"],
-    "defaultScopes": "…", "prompt": "consent" }] }
+    "defaultScopes": "…", "prompt": "consent", "accessType": "offline" }] }
 ```
 
-`clientSecret`, `defaultScopes`, and `prompt` are optional; `upstreamUrls` needs
+`clientSecret`, `defaultScopes`, `prompt`, and `accessType` are optional; `upstreamUrls` needs
 at least one entry. Endpoints must be HTTPS (HTTP only for loopback). `prompt` is
 space-separated `none` / `login` / `consent` / `select_account`, with `none` only
-on its own. **Restart all replicas after changing it**; registration secrets are
+on its own. `accessType` (`offline` / `online`) is sent as `access_type` — Google
+issues a refresh token only with `offline`, so pair it with `prompt: "consent"`.
+**Restart all replicas after changing it**; registration secrets are
 never copied to the database.
 
 - `list_oauth_applications { projectId }` (project admin) lists the choices —
@@ -75,6 +77,20 @@ never copied to the database.
   `oauthApplicationDisplayName`, and `oauthApplicationError`, so a credential whose
   application no longer resolves (removed or changed in the catalog) shows up as
   broken rather than silently failing.
+
+### Extra redirect URIs and the callback outcome
+
+An OAuth Login credential can allow up to **10** `additionalRedirectUris` (for a
+client that completes the login on its own redirect) — **REST / web UI only**,
+not on `create_mcp_server_credential`; project admin; an update replaces the
+list. Each must also be listed in the install's
+`config.upstreamOAuthAdditionalRedirectUris` (`UPSTREAM_OAUTH_ADDITIONAL_REDIRECT_URIS`):
+`https` (except localhost), and never the platform's own
+`<publicUrl>/v1/mcp-servers/oauth/callback`. A sign-in picks one with
+`redirectUri` on the OAuth start request. A service on such a URI that forwards
+the query to the platform's callback with `Accept: application/json` gets
+`200 {status:"connected", serverId}` or `400 {status:"failed", reason}` instead of
+the browser page; the state is single-use, so don't retry a forward.
 
 ## Expose to agents
 
