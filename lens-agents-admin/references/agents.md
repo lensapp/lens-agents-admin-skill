@@ -31,8 +31,8 @@ Semantics that bite:
   distroless are **unsupported** (see `gotchas.md`).
 - After create, **poll `get_sandbox`** until `state` is `started` and
   `exposedPorts[0].url` is populated — that URL is the agent's chat UI.
-- **No idle shutdown for agent sandboxes** — they run until stopped (the
-  30-min idle shutdown applies only to `shell_*` sandboxes). `stop_sandbox` for an
+- **No idle shutdown for agent sandboxes** — they run until stopped.
+  `stop_sandbox` for an
   immediate cutoff (e.g. after revoking access — revocation alone doesn't kill a
   running process).
 
@@ -54,6 +54,13 @@ inference, MCP tools, credentials (incl. Slack tokens), and the platform
 connection URLs — comes from its **policy** and is injected by the platform; don't
 put it in `env`. (Slack tokens → `playbooks.md` playbook 7; project-admin "Odin" →
 `playbooks.md` playbook 6.)
+
+**Microsoft Teams (web UI Prism template):** the template can also connect the
+agent to Teams. It asks for a single-tenant Teams app's ID and tenant ID (set
+as `TEAMS_APP_ID` / `TEAMS_APP_TENANT_ID`) and its client secret, stored as an
+OAuth client-credentials credential (`TEAMS_APP_PASSWORD`, token from
+`login.microsoftonline.com`, see `credentials.md`), and exposes a public port
+`teams` on `3979` for the bot endpoint.
 
 ## Configure the running agent (the agent's own tools)
 A managed agent's behavior is **seven workspace files**, all loaded every
@@ -98,11 +105,9 @@ Capabilities to know when configuring an agent:
 Skills load from `<DATA>/skills` (=`/data/skills`) and hot-reload on directory
 mtime. Get `lens-agents-admin/SKILL.md` (+ `references/`) there one of two ways:
 - **Pre-seed** the `/data` volume at create time (you own the volume then).
-- **Ask the agent to install it itself** — the reliable runtime path. The platform
-  `shell_*` tools (`shell_exec`/`shell_write_file`/`shell_claude_code`) run in a
-  **fresh sandbox as the caller, not inside the target agent's container**, so you
-  can't write *its* `/data` with them. Instead talk to the agent over its chat and
-  ask it to install the skill from its repo link, e.g.
+- **Ask the agent to install it itself** — the reliable runtime path. No platform
+  tool writes into another agent's container, so you can't write *its* `/data`
+  over MCP. Instead talk to the agent over its chat and ask it to install the skill from its repo link, e.g.
   `https://github.com/lensapp/lens-agents-admin-skill` (via `npx skills add <source> --copy`
   or a `git clone`/curl into `$PRISM_DATA_DIR/skills`). Add the egress its install
   path needs to the agent's policy `allowedDomains` first (public repo — domains
@@ -115,6 +120,5 @@ mtime. Get `lens-agents-admin/SKILL.md` (+ `references/`) there one of two ways:
 ## Give it a first goal
 After launch, hand the agent its first task over **its own chat UI / WebSocket**
 (e.g. "you are the SRE agent for `prod-eks`; watch for failing pods and report").
-Note the platform `shell_*` tools won't do this — they run in a fresh sandbox as
-the caller, not inside the launched agent's container — so drive the agent through
-its chat, not through `shell_claude_code`.
+No platform tool reaches inside the launched agent's container, so drive the
+agent through its chat.

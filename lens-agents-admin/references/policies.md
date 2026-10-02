@@ -35,8 +35,8 @@ Non-obvious semantics, by field:
 - **`managedInference`** — omitting the object leaves inference disabled. It
   only *selects* the managed backend (`provider`, e.g. `bedrock` or `litellm`;
   optional `providers: [...]` enables several, with `provider` as the primary); the underlying
-  provider credential itself is a platform install-time value, never set
-  here.
+  provider credential itself is the deployment's install-time key or the org's
+  own inference key (`set_inference_key`, see `inference.md`), never set here.
 - **`piiMasking`** — `types` picks from the platform's PII enum;
   `failOpen: false` means fail-**closed** (block rather than risk leaking
   unmasked PII) — read the flag name carefully, it inverts easily.

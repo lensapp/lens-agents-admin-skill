@@ -12,12 +12,26 @@ agents/sandboxes, spending, teams, and API tokens, plus read audit/usage — and
 the org-scoped operations that nothing else can do. This is the onboarding path;
 **just do the work**.
 
+Org **inference keys** (`list_inference_keys`, `set_inference_key`,
+`remove_inference_key`) are in this tier only: a human org admin's OIDC session,
+never an API token or a sandbox identity. `list_inference_providers` is also offered to
+API tokens. See `inference.md`.
+
+**Direct-access gate (off by default).** If the install sets
+`oidc.directAccessRole`, OIDC tokens on REST, `/mcp`, and WebSockets must be
+access tokens issued to this install's own client, and the person must hold that
+realm role (in `realm_access.roles`), be a named installation owner with a
+verified email, or come through a client listed in `oidc.delegatedClients`. A
+token issued to another client gets **401**; a person without the role gets
+**403**. `oidc.directAccessReportOnly: true` only logs refusals. So a `403` on
+`/mcp` for an otherwise valid account usually means a missing realm role.
+
 ## Project admin — an API token on a team with project-ADMIN role
 
 **Spending limits are the exception to everything below.** Changing one takes a
 human OIDC session that is not sandbox-mediated, so a project-admin API token
 cannot set or remove a limit even for its own project's sandboxes — nor can code
-running inside a shell sandbox, which carries its creator's OIDC identity. Both
+holding a user-issued sandbox token, which carries its creator's OIDC identity. Both
 can still read limit *status* (`get_spending_limit_status`);
 `list_spending_limits` is OIDC-only. See `governance.md`.
 
