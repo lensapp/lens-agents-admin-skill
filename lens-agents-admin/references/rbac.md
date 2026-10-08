@@ -8,7 +8,7 @@ can do and what will be refused.
 A **human's coding agent signed in via OIDC** (`mcp login`) whose account is an
 org admin has **full control of the org**: create/manage projects, policies,
 bindings, credentials, connections (Kubernetes/AWS), MCP connectors,
-agents/sandboxes, spending, teams, and API tokens, plus read audit/usage — and
+agents/sandboxes, spending, project members, and API tokens, plus read audit/usage — and
 the org-scoped operations that nothing else can do. This is the onboarding path;
 **just do the work**.
 
@@ -26,7 +26,7 @@ token issued to another client gets **401**; a person without the role gets
 **403**. `oidc.directAccessReportOnly: true` only logs refusals. So a `403` on
 `/mcp` for an otherwise valid account usually means a missing realm role.
 
-## Project admin — an API token on a team with project-ADMIN role
+## Project admin — an API token with the project-ADMIN role
 
 **Spending limits are the exception to everything below.** Changing one takes a
 human OIDC session that is not sandbox-mediated, so a project-admin API token
@@ -36,14 +36,14 @@ can still read limit *status* (`get_spending_limit_status`);
 `list_spending_limits` is OIDC-only. See `governance.md`.
 
 An **API token is never an org admin**, but it *can* administer a **project** it
-holds ADMIN role on. Add the token to a team and set that team's project role to
-**ADMIN** (`set_team_project_access`); then, over the **global `/mcp`**, it can
+holds ADMIN role on. An org admin gives the token that role directly
+(`set_project_member { projectId, apiTokenId, role:"ADMIN" }`); then, over the **global `/mcp`**, it can
 create/update/delete that project's **policies, credentials, sandboxes, and
 project-scoped policy bindings**. This is how you provision
 a **per-project admin agent** ("Odin") that runs without a human session.
 
 What a project-admin token **cannot** do — these are org-scoped and **OIDC-only**:
-create orgs/projects, mint/revoke API tokens, manage teams, write **org-level
+create orgs/projects, mint/revoke API tokens, change project members, write **org-level
 policies/bindings** (the org ceiling), project lifecycle (update/delete project,
 rotate keys), or reach any other project. Most of these tools aren't even surfaced
 to a token; the org policy/binding tools *are* surfaced but are **refused at
@@ -53,10 +53,14 @@ session. This is exactly why an **org ceiling contains a project-admin agent**: 
 can shape its own project all it likes, but it cannot touch the org-level cap that
 clips it (see `policies.md`).
 
+Project-member changes are also refused from any **sandbox session**
+(`access-denied`) — including a user-issued sandbox token that replays an org
+admin's OIDC context — the same rule as spending-limit mutations.
+
 ## Sandbox principals are MEMBER — until you give them a project-admin token via `nexus-api`
 
 A managed agent on its **default sandbox identity** is capped at project
-**MEMBER** regardless of team role. On the global `/mcp` it sees only three
+**MEMBER**. On the global `/mcp` it sees only three
 first-party tools — its *own* spend/usage/limit-status, self-scoped — plus the
 connector tools its policy grants; it can **not** create policies/credentials/sandboxes.
 

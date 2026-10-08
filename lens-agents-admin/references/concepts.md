@@ -15,7 +15,7 @@ built first; the three agent types are just ways to connect to it.
 
 ## Two identity models (drives all audit attribution)
 - **User identity** — OIDC/SSO; a human; actions attributed to their email.
-- **Agent identity** — an opaque bearer token, scoped to one org+team+project;
+- **Agent identity** — an opaque bearer token, scoped to one org, with a direct role on each project it may reach;
   a first-class principal. **Agents authenticate as themselves, never
   impersonating the human.**
 Every action is attributed to one of these, plus the invocation mode
@@ -83,7 +83,7 @@ released images bake in a collector endpoint and write key, and the chart's
 `telemetry.enabled` defaults to `true`. Disable it at install time with
 `--set telemetry.enabled=false`, or point `telemetry.endpoint` at a collector
 you own — there is no middle setting. What leaves the cluster is product events:
-the ids **and names** of orgs, projects, teams and sandboxes, plus tool names,
+the ids **and names** of orgs, projects and sandboxes, plus tool names,
 counts and outcomes — never prompts, completions, tool arguments or credential
 values. Tell an operator who treats object names as sensitive before they
 install, not after. Bedrock keeps data in the AWS account; Azure in the Azure

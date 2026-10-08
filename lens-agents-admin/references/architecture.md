@@ -21,7 +21,7 @@ sandbox-token → api-token → OIDC).
 - **oidc** — humans; sees **all** tools; org-admin if the DB says so.
 - **api-token** — external callers / a per-project admin agent; Bearer (`lns_`
   prefix); **never org-admin**; sees the api-token-visible tool subset and can
-  administer a **project** it holds **ADMIN** role on (via its team) — org-scoped
+  administer a **project** it holds **ADMIN** role on (a direct project role) — org-scoped
   ops stay OIDC-only. See `rbac.md`.
 - **cluster-jwt** — the per-cluster kubectl JWT a sandbox's kubeconfig resolves
   to (`lnsc_` prefix, 15 min). The relay itself authenticates its tunnel with an
@@ -53,6 +53,13 @@ Two policy-resolution edge cases worth knowing:
   the platform's own host and leaves **managed inference OFF** (opt-in).
 - A genuine policy-resolution **error** fails **closed** (deny-all).
 
+The platform's forward proxy (which carries a sandbox's `upstream`-transport
+traffic) checks every CONNECT against the sandbox's network policy: a target the
+policy doesn't route `upstream` gets **403** and an audit failure (reason
+`policy`, or `policy-unavailable` when no policy resolved).
+`FORWARD_PROXY_POLICY_CHECK=audit` (env, not a chart value) lets those through,
+logged and marked on the audit entry; the default is `enforce`.
+
 ## How sandboxes reach clusters
 Outbound traffic routes through a **cluster relay tunnel** for `clusterId`-tagged
 routes; the relay is an **outbound-only** daemon inside the target network (no
@@ -62,8 +69,9 @@ choice.
 
 ## Short-lived credentials (know the TTLs)
 - **kubectl** cluster JWT: **15 minutes**, auto-rotated. It impersonates
-  `sandbox:<id>` in group `<org>/<project>` for a sandbox, `agent:<tokenName>` in
-  `<org>/<team>` groups for an API token, or `oidc:<email>` for a human.
+  `sandbox:<id>` in group `<org>/<project>` for a sandbox; `agent:<tokenName>` (API
+  token) or `oidc:<email>` (human) in groups `<org>/<project>` and
+  `<org>/<project>:<role>` (`admin`|`member`) of the cluster's project.
 - **EKS** token: SigV4-presigned, **capped at 900s** by AWS.
 - **AWS** STS AssumeRole: **900s (15 min)**, session-tagged (`lens:user-id`,
   `lens:user-identity`, `lens:project-id`, `lens:project-name`, `lens:org-id`,

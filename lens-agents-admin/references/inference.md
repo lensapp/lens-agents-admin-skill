@@ -11,8 +11,13 @@ an org admin (see "Org inference keys" below). The org key wins.
 A backend is **served** by the deployment, and **usable** by an org when it also
 has a key: the org's own, or the deployment's (if the deployment allows the
 fallback).
-- **`bedrock`** — AWS Bedrock. **Always served**; the deployment key falls back
-  to the AWS default credential chain if no token is set.
+- **`bedrock`** — AWS Bedrock. Offered only when there is a Bedrock token, an
+  org Bedrock key, or AWS credentials the platform detects at boot (env keys,
+  IRSA, ECS/Pod Identity, `AWS_PROFILE`, a shared credentials file, or EC2
+  instance metadata); otherwise `list_inference_providers` reports its
+  `keyOrigin: null`. Override the detection with
+  `inference.bedrock.ambientCredentials: "true"|"false"`
+  (`NEXUS_BEDROCK_AMBIENT_CREDENTIALS`).
 - **`azure`** — Claude on **Microsoft Foundry** (Anthropic Messages API,
   api-key auth). Served **only when** the Foundry base URL is set; needs the
   deployment token or an org key.
@@ -57,7 +62,8 @@ fallback).
     any model LiteLLM has no price for, spend **counts against no spending limit**.
 
 `GET /v1/inference/providers` reports the backends an org **without** its own key
-can use (the deployment-key set; empty when the fallback is off).
+can use (the deployment-key set; empty when the fallback is off), plus
+`defaultProvider` — the primary a policy gets when it names none.
 `list_inference_providers { orgId }` (REST `GET /v1/orgs/{orgId}/inference/providers`)
 reports, per served backend, whose key this org uses: `keyOrigin` = `org`,
 `deployment`, or `null` — `null` means a policy selecting that backend fails.
@@ -85,7 +91,9 @@ also offered to API tokens. REST: `GET/PUT/DELETE
 Set `managedInference: { enabled: true, provider: <backend> }` on the policy
 (absent ⇒ inference OFF; opt-in). To enable several backends, add
 `providers: [...]` (unique, and it must include `provider`, which stays the
-primary). The proxy checks the **backend** (not just the
+primary). Omit `provider` and the primary is `bedrock` if the org can resolve a
+Bedrock key (its own or the deployment's), else `defaultProvider`; with none, the
+sandbox gets no inference. The proxy checks the **backend** (not just the
 URL) — a sandbox can't reach a backend its policy didn't select (data-residency
 defense).
 
@@ -118,7 +126,7 @@ in the policy env (or let the agent pick its own; the web UI's agent templates
 pre-fill one). Managed model config: temp **0.3**, max
 **16k** output tokens, **100**-step limit, **30k**-char tool-output truncation,
 prompt caching auto. Install-time env (every token optional):
-`NEXUS_BEDROCK_TOKEN`, `NEXUS_AZURE_BASE_URL` + `NEXUS_AZURE_TOKEN`,
+`NEXUS_BEDROCK_TOKEN` (+ optional `NEXUS_BEDROCK_AMBIENT_CREDENTIALS`), `NEXUS_AZURE_BASE_URL` + `NEXUS_AZURE_TOKEN`,
 `NEXUS_OPENAI_TOKEN` + optional `NEXUS_OPENAI_BASE_URL`,
 `NEXUS_OPENROUTER_TOKEN`, `NEXUS_LITELLM_BASE_URL` + `NEXUS_LITELLM_TOKEN` +
 optional `NEXUS_LITELLM_FORWARD_TAGS`, and `NEXUS_INFERENCE_DEPLOYMENT_KEY_FALLBACK`

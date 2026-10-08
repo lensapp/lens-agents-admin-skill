@@ -76,9 +76,9 @@ to Lens ID. **Managed inference** means the platform holds the provider
 credential and proxies every LLM call (metered/gated/audited).
 
 > **Ask the user which credential they hold** before you install, and use that
-> block. Do **not** default to Bedrock: it is the one backend that is always
-> *selectable*, but with no token and no IAM role behind it every call fails,
-> and the agent looks broken rather than unconfigured.
+> block. Do **not** default to Bedrock: with no token and no AWS credentials
+> it isn't offered, yet a policy that names it is still accepted — every call
+> fails, and the agent looks broken rather than unconfigured.
 
 Three shared flags: `encryption.key` (64 hex, at-rest encryption), `config.publicUrl`,
 `sandboxIngress.host=localtest.me` (required for sandbox web UIs — `localtest.me`
@@ -103,7 +103,7 @@ helm install lens-agents oci://ghcr.io/lensapp/lens-agents \
 ```bash
   --set inference.bedrock.token="<bedrock-api-key>"
 ```
-- No token and no IAM role behind it = a clean install whose every call fails.
+- No token and no AWS credentials (e.g. an IAM role) = Bedrock isn't offered.
 
 **OpenAI (GPT only):** same three shared flags, plus:
 ```bash
@@ -148,8 +148,8 @@ helm install lens-agents oci://ghcr.io/lensapp/lens-agents \
 **Provider availability (how the platform decides what's offered):** a backend
 needs to be served and to have a key. Bedrock, **Bedrock Mantle**, **OpenAI** and
 **OpenRouter** are always served; **Azure** and **LiteLLM** only when their base
-URL is set. The key is the deployment token here (Bedrock falls back to the AWS
-default credential chain; Mantle needs a real Bedrock token) — or the org's own:
+URL is set. The key is the deployment token here (Bedrock without a token needs
+AWS credentials the platform detects at boot; Mantle needs a real Bedrock token) — or the org's own:
 **every deployment token is optional**, because an org admin can set the org's
 inference key per backend on the **Inference Keys** page, and the org key wins.
 `inference.deploymentKeyFallback: false` stops orgs without their own key from
@@ -159,8 +159,10 @@ its own key can use (see `inference.md`).
 > Keep tokens out of shell history: `--set inference.<provider>.existingSecret=<name>`
 > (default keys `NEXUS_BEDROCK_TOKEN` / `NEXUS_AZURE_TOKEN` /
 > `NEXUS_OPENAI_TOKEN` / `NEXUS_OPENROUTER_TOKEN` / `NEXUS_LITELLM_TOKEN`, override with
-> `existingSecretKey`). On EKS, Bedrock can resolve from an IAM role and skip the
-> token.
+> `existingSecretKey`). On EKS, Bedrock can resolve from an IAM role (IRSA / Pod
+> Identity) and skip the token; set `inference.bedrock.ambientCredentials` to
+> `"false"` if that role has no Bedrock access, or `"true"` if detection can't
+> see the credential source.
 
 Confirm the rollout:
 ```bash
@@ -254,5 +256,12 @@ bundled DB, a single install-time inference credential. Production adds microVM
 sandbox isolation (Kata/gVisor runtime classes), real ingress + TLS, a managed
 database, RBAC, and hardened credential management — a guided-evaluation
 engagement, not self-serve. The chart can also deploy the Lens Agents client API
-as a subchart (`bff.enabled`, off by default; enabling it requires
-`bff.tokenExchange.clientId` and `bff.tokenExchange.existingSecret`).
+as a subchart (`bff.enabled`, off by default; with the default
+`bff.nexusAuth: exchange` it requires `bff.tokenExchange.clientId` and
+`bff.tokenExchange.existingSecret` — `forward` needs neither and is refused while
+`oidc.directAccessRole` is set).
+A pre-provisioned `oidc.clientId` must also accept `<publicUrl>/oauth/callback`,
+or MCP-client sign-ins (Claude Code, Codex) fail with `Invalid parameter:
+redirect_uri`. Behind an ingress, keep its header limit at least
+`config.maxHeaderBytes` (default `32768`). `sandboxIngress.corsOrigins` lists
+origins a web UI may call private sandbox ports from.

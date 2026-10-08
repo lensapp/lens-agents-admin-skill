@@ -127,7 +127,7 @@ lens-agents-admin/
   architecture.md     # internals: two MCP endpoints, sandbox-as-principal, the two proxies, network policy, TTLs
   install-local.md    # stand up the whole platform on minikube (any of the six inference backends), then onboard
   rbac.md             # who administers (OIDC org-admin / project-admin token / sandbox) — read before acting
-  tenancy.md          # orgs, teams, projects, membership, API tokens
+  tenancy.md          # orgs, projects, project members, API tokens
   policies.md         # policy + binding semantics (ceiling/clip/drift, people-vs-sandbox axes)
   inference.md        # managed inference: backends, metering boundary, PII fail modes, env traps
   credentials.md      # credential injection model (decoy/boundary)
