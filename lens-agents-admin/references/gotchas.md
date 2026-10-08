@@ -14,7 +14,7 @@ Know which way each guard fails before you rely on it:
 | **Empty/absent** policy | egress-deny but **inference stays OFF** | not the same as a resolve error |
 
 ## Default thresholds (embed these — don't send the user to look them up)
-- Agent sandboxes have **no idle shutdown** — they run until stopped.
+- Sandboxes have **no idle shutdown by default** — `autoStopMinutes` / `autoDeleteMinutes` are opt-in (see `agents.md`).
 - **kubectl JWT: 15 min**; **EKS token / AWS STS: 900 s**; generic JWT default 60 s.
 - **Heartbeat: 8 h default, 1 min minimum**; auto-stop after **5 consecutive failures**.
 - Managed LLM: **100**-step limit, **16k** max output tokens, temp **0.3**, **30k**-char tool-output truncation.
@@ -37,9 +37,13 @@ Know which way each guard fails before you rely on it:
 - **Realtime voice is served UNMASKED** — a policy carrying `piiMasking` is simply not applied to an OpenAI realtime session; the only trace is `piiMaskingSkipped` on the audit records. Set masking, enable voice, and the audio leg is unmasked while the HTTP leg fails closed (see `inference.md`).
 - **`OPENAI_BASE_URL` must end in `/v1`** or managed GPT calls 404 (see `inference.md`).
 - **Direct provider egress is unmetered** — keep provider hosts denied (see `inference.md`).
-- **Revocation doesn't stop a running sandbox** — a revoked API token is refused on its next request, but the sandbox keeps running (agent sandboxes never idle out); stop it for immediate cutoff.
+- **Revocation doesn't stop a running sandbox** — a revoked API token is refused on its next request, but the sandbox keeps running (nothing stops it unless an auto-stop timer is set); stop it for immediate cutoff.
 - **No platform tool reaches inside another agent's container.** So you can't seed a skill into another agent's `/data` or drive its runtime over MCP. To seed/drive a managed agent, go through *its own* chat UI / WS (e.g. ask it to install the skill from its repo link), or pre-seed the `/data` volume at create time.
 - **A Slack bot-token credential only allows the methods you whitelist — and the adapter's set ≠ the agent's set.** The Bolt adapter calls a fixed handful (auth.test, chat.postMessage/update, conversations.info/replies, reactions.add, users.info, files.*). If the *agent itself* calls other Slack methods — e.g. it enumerates channels/DMs via `conversations.list` / `users.conversations` — those must be in the credential's injection rules too, or the proxy 403s them. Easy to miss precisely because the adapter never calls them, so a "working" Slack connection still fails the agent's own API use (see `playbooks.md` playbook 7).
+- **Auto-stop ignores egress and public-port traffic.** A Slack- or heartbeat-driven agent, or a chat UI on a `public` port, can be stopped mid-work — and, if `autoDeleteMinutes` is set, auto-delete then removes its `/data` volume.
+- **Cluster RBAC bound to `<org>/<team>` groups no longer matches** — those groups are gone; rebind to `<org>/<project>` (see `connections.md`).
+- **Bedrock with no Bedrock token, org Bedrock key, or detectable AWS credentials isn't offered** — a policy naming it fails every call (see `inference.md`).
+- **A forward-proxy CONNECT outside the sandbox policy gets 403** (see `architecture.md`).
 - **Managed inference is opt-in** — an empty policy egress-denies but leaves inference OFF; the agent won't answer until a policy enables it.
 - Provider must match across **install + policy + sandbox `LLM_PROVIDER`** or the agent won't answer — and **an unrecognized `LLM_PROVIDER` doesn't throw, it silently falls back to `bedrock`**, so a typo presents as a mismatch, not a config error (see `agents.md`). "Install" here means the backend is served *and* has a key — the deployment's, or the org's own inference key (see `inference.md`).
 

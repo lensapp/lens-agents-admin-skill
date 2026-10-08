@@ -37,6 +37,9 @@ Non-obvious semantics, by field:
   optional `providers: [...]` enables several, with `provider` as the primary); the underlying
   provider credential itself is the deployment's install-time key or the org's
   own inference key (`set_inference_key`, see `inference.md`), never set here.
+  Omit `provider` and the primary is `bedrock` if the org can resolve a Bedrock
+  key (its own or the deployment's), else the deployment default
+  (`defaultProvider` in `GET /v1/inference/providers`); with none, no inference.
 - **`piiMasking`** — `types` picks from the platform's PII enum;
   `failOpen: false` means fail-**closed** (block rather than risk leaking
   unmasked PII) — read the flag name carefully, it inverts easily.
@@ -53,7 +56,9 @@ Non-obvious semantics, by field:
 Tools: `list_policy_bindings`, `get_policy_binding`, `create_policy_binding`,
 `update_policy_binding`, `delete_policy_binding`. `list_policy_binding_drift`
 is advisory: it shows where a project binding got **clipped** by the org
-ceiling (the effective grant ended up narrower than the binding asked for).
+ceiling (the effective grant ended up narrower than the binding asked for);
+`allowed_domains` entries name the `pattern`, the `reason`, and the
+`ceilingPattern` that matched.
 
 A binding's `position` sets merge order: bindings that apply to the same subject
 merge in ascending `position` (then creation time). Grants such as allowed domains
@@ -93,7 +98,13 @@ Clipping is restriction-only and happens **at resolve time**, not at save:
   clipped** — inspect with `list_policy_binding_drift` (per-binding) and
   `get_sandbox_effective_policy` (per-sandbox: the resolved policy plus its drift —
   `blockedDomains`, `narrowedDomains`, `blockedConnectors`, `managedInferenceBlocked`,
-  `networkUnrestrictedBlocked`, `denyAll`, `shadowedCredentials`).
+  `networkUnrestrictedBlocked`, `denyAll`, `shadowedCredentials`). `blockedDomainDetails`
+  gives each blocked pattern's `reason` (`not_in_ceiling`, `denied_by_ceiling`,
+  `rules_not_permitted`, `binaries_not_permitted`) and `ceilingPattern`; each
+  `narrowedDomains` item (one per pattern and scheme) carries `ceilingPattern`,
+  `requestedRules`, `effectiveRules`, `removedRules`, `addedRules` and a readable
+  `changes`. A rule merely narrowed (any method → GET) is not in `removedRules` —
+  it shows in `effectiveRules`.
 
 **Why this matters for admin agents ("Odin"):** a project-admin agent can rewrite
 its project's policies/bindings and launch sandboxes, but an org ceiling still

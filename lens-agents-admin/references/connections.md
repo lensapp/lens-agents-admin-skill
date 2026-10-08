@@ -64,23 +64,27 @@ real Role to the exact identity the platform sends:
 | Principal | Identity string the relay sends |
 |-----------|--------------------------------|
 | Managed agent (sandbox) | user `sandbox:<sandboxId>`, group `<orgName>/<projectName>` |
-| API-token agent | user `agent:<apiTokenName>` (the token's name, not a free-form agent name) |
-| Human (OIDC) | user `oidc:<email>` |
-| Team (OIDC / API-token principals) | group `<orgName>/<teamName>` — one per team, **no prefix** |
+| API-token agent | user `agent:<apiTokenName>` (the token's name, not a free-form agent name), groups `<orgName>/<projectName>` + `<orgName>/<projectName>:<role>` |
+| Human (OIDC) | user `oidc:<email>`, groups `<orgName>/<projectName>` + `<orgName>/<projectName>:<role>` |
+
+`<role>` is `admin` or `member` — the caller's role on the project that owns the
+cluster (an org admin counts as `admin`). Groups carry **no prefix**. There are
+no `<orgName>/<teamName>` groups any more — rebind any RBAC that named them.
 
 These land verbatim in the `Impersonate-User` / `Impersonate-Group` headers, so
 the RBAC subject `name` must match the string **exactly**.
 
-**Recommended — bind to the team group** (every agent on that team inherits the
-access; group membership follows team assignment on the platform). Managed agents
-(sandboxes) carry no team group — bind their `<orgName>/<projectName>` group, or
-user `sandbox:<sandboxId>` for one sandbox:
+**Recommended — bind the project group `<orgName>/<projectName>`** — it covers
+every principal reaching the cluster through that project: sandboxes, API tokens
+and humans. To give admins more, also bind `<orgName>/<projectName>:admin`
+(sandboxes carry only the plain project group). Or bind user
+`sandbox:<sandboxId>` for one sandbox:
 
 ```yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding          # use RoleBinding to scope to one namespace
 metadata:
-  name: lens-agents-team-view
+  name: lens-agents-project-view
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -88,7 +92,7 @@ roleRef:
 subjects:
   - apiGroup: rbac.authorization.k8s.io
     kind: Group
-    name: "acme/platform-team"    # <orgName>/<teamName> — quote it, it contains a slash
+    name: "acme/platform"         # <orgName>/<projectName> — quote it, it contains a slash
 ```
 
 Or bind to **one agent** for finer isolation — same manifest with

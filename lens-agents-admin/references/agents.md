@@ -9,7 +9,7 @@ image.
 
 ## Launch — `create_sandbox` and lifecycle
 Tools: `list_sandboxes`, `get_sandbox`, `create_sandbox`, `update_sandbox`,
-`start_sandbox`, `stop_sandbox`, `delete_sandbox`, `list_sandbox_revisions`,
+`start_sandbox`, `stop_sandbox`, `restart_sandbox`, `delete_sandbox`, `list_sandbox_revisions`,
 `rollback_sandbox`, `get_sandbox_effective_policy`.
 
 Semantics that bite:
@@ -22,17 +22,46 @@ Semantics that bite:
 - **Caps: up to four exposed ports, one persistent volume.** `exposedPorts[].auth`:
   `public` = openable without a platform session (handy for a trial chat UI);
   `private` (the default) = requires a platform sign-in with access to the project.
+  On a `public` port the caller's own `Authorization` header reaches the app (e.g.
+  a bot's JWT); on `private` ports it is stripped.
 - **`cpu` and `memory` are required** (K8s quantities, e.g. `cpu: "500m"`,
   `memory: "2Gi"` / `"512Mi"`) and must **not exceed** the platform's
   `SANDBOX_CPU` / `SANDBOX_MEMORY` ceilings (Helm chart default `500m` / `2Gi`,
   set by `sandbox.k8s.cpu` / `sandbox.k8s.memory`). `update_sandbox`
-  can change them — that creates a new revision and restarts the sandbox.
+  can change them — a different value creates a new revision and restarts the
+  sandbox (the same value doesn't).
 - Image must have `/bin/sh` + a writable CA bundle; `FROM scratch` / non-debug
   distroless are **unsupported** (see `gotchas.md`).
 - After create, **poll `get_sandbox`** until `state` is `started` and
   `exposedPorts[0].url` is populated — that URL is the agent's chat UI.
-- **No idle shutdown for agent sandboxes** — they run until stopped.
-  `stop_sandbox` for an
+  `started` means the container runs, not that the agent answers yet: REST
+  `GET /v1/projects/{projectId}/sandboxes/{sandboxId}/port-readiness` reports
+  `answering`.
+- **`restart_sandbox`** always re-provisions the active revision, even on a
+  running sandbox; from stopped it behaves like start. Refused while another
+  transition is in flight (a concurrent restart gets 409; also refused while
+  settling or with a stop pending) — wait and retry. It returns the pre-restart
+  state: record `health.startedAt`, then poll `get_sandbox` until `state` is
+  `started` and `startedAt` differs; `state: error` is terminal.
+- **Lifecycle timers** — all off unless set; metadata-only (no restart); `null`
+  clears:
+  - `autoStopMinutes` (1–43200, i.e. up to 30 days): stop after that long with no
+    activity — an open exec/terminal session or a request to a **private** port.
+    Egress and public-port traffic don't count.
+  - `autoDeleteMinutes` (0–43200): delete the sandbox **and its volume** that long
+    after it was asked to stop (`0` = as soon as it has stopped). A sandbox in
+    `error` is never deleted.
+  - `autoStart`: an exec, terminal or private-port request to an auto-stopped
+    sandbox starts it again and waits for it (60 s by default). A sandbox a person
+    stopped stays stopped.
+  - Reads show `lastActivityAt`, `stoppedAt`, `autoStopAt`, `autoDeleteAt`. Timers
+    are swept once a minute; each stop/delete writes a `sandbox.auto_stop` /
+    `sandbox.auto_delete` audit event.
+  - CLI: `nexusctl sandbox create|update --auto-stop 30m --auto-delete 1d
+    --auto-start` (`update` also takes `--clear-auto-stop`, `--clear-auto-delete`,
+    `--clear-auto-start`; durations are `m`/`h`/`d`, or `0`); `nexusctl sandbox
+    describe` shows when each timer is due.
+- **Without a timer, a sandbox runs until stopped.** `stop_sandbox` for an
   immediate cutoff (e.g. after revoking access — revocation alone doesn't kill a
   running process).
 

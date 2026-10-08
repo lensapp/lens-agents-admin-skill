@@ -1,10 +1,12 @@
-# Tenancy — orgs, teams, projects, membership, API tokens
+# Tenancy — orgs, projects, project members, API tokens
 
 > **Exact parameters aren't here — read the live schema.** For any tool, use `tools/list` (automatic over MCP) or the REST OpenAPI at `<publicUrl>/v1/openapi.json` (`/v1/docs` for the UI). This file covers what those can't: what the tools are for and the non-obvious rules.
 
-The tenancy spine is **org → team → project**. Projects hold the resources
-(policies, credentials, connections, sandboxes). Teams are granted access to
-projects; users and API tokens act within the projects their team reaches.
+The tenancy spine is **org → project**. Projects hold the resources
+(policies, credentials, connections, sandboxes). A user or API token reaches a
+project through a **direct project role** (`ADMIN`/`MEMBER`) — there are no
+teams. On upgrade, each team grant became a direct role (the highest any of its
+teams gave), and a user who was only in a team became an org MEMBER.
 
 ## Organizations
 
@@ -41,16 +43,26 @@ Tools: `list_projects`, `get_project`, `get_project_public_key`,
 `create_project`'s `name` is a unique slug within the org; `displayName` is
 also required.
 
-## Teams
+## Project members
 
-Tools: `list_teams`, `get_team`, `create_team`, `update_team`, `delete_team`,
-`add_team_member`, `remove_team_member`, `set_team_project_access`,
-`remove_team_project_access`.
+Tools: `list_project_members { projectId }`, `set_project_member { projectId,
+userId | apiTokenId, role }`, `remove_project_member { projectId, userId |
+apiTokenId }` — give exactly one of `userId` / `apiTokenId`. REST: `GET
+/v1/projects/{projectId}/members`, `PUT`/`DELETE`
+`…/members/users/{userId}` and `…/members/api-tokens/{apiTokenId}`.
 
-Teams are how a **user or API token gains project access and a project role**
-(`ADMIN`/`MEMBER`) — for an API token this is the **only** way it becomes a
-project admin (there is no org-admin token). Org admins (OIDC) implicitly have
-ADMIN on every project without team membership.
+A project role is how a **user or API token gains project access** — for an API
+token this is the **only** way it becomes a project admin (there is no
+org-admin token). Org admins (OIDC) implicitly have ADMIN on every project
+without a membership.
+
+- Setting or removing a member needs an **org-admin OIDC session**: these two
+  tools aren't offered to API tokens, and they are refused from a sandbox
+  session — even a user-issued sandbox token that replays an org admin's OIDC
+  context. `list_project_members` is also offered to API tokens.
+- A user must already be an org member (invite first); a token must belong to
+  the project's org. `set_project_member` on an existing member changes its role.
+- `remove_org_member` also removes that person's project roles in the org.
 
 ## Invitations
 
@@ -66,18 +78,18 @@ needs an **org-admin (OIDC) session** (these tools aren't offered to a token).
 
 An API token is a **bearer credential for a non-human principal** (an external
 agent, or a managed agent you provision). **A token is never an org admin, and
-there is no `orgAdmin` flag** — its power comes entirely from the **team(s) it's
-on** and those teams' **project roles**:
+there is no `orgAdmin` flag** — its power comes entirely from its **project
+roles**:
 
-- Put the token on a team with **project ADMIN** role
-  (`set_team_project_access` → `ADMIN`): it can administer that project — create/
+- Give the token the **project ADMIN** role
+  (`set_project_member { projectId, apiTokenId, role:"ADMIN" }`): it can administer that project — create/
   update/delete its policies, credentials, sandboxes, and project-scoped
   bindings, over the **global `/mcp`**. This is how you provision a per-project
   admin agent ("Odin").
-- **Project MEMBER** (`set_team_project_access` takes the role explicitly):
+- **Project MEMBER** (`role:"MEMBER"`):
   read/observe, list/get clusters and AWS connections — but not open a sandbox
   terminal (ADMIN only), create policies/sandboxes, or add clusters/AWS connections.
 
 Org-scoped actions (create org/project, mint/revoke tokens, org-level policies &
-bindings, team CRUD, project lifecycle) always require an **org-admin human
+bindings, project membership, project lifecycle) always require an **org-admin human
 (OIDC)**. See `rbac.md`.

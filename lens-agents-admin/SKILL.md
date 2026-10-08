@@ -17,7 +17,7 @@ compatibility: >-
   Lens Agents platform MCP endpoint.
 metadata:
   version: "1.0"
-  platformRelease: "lens-agents-platform-v0.30.0"
+  platformRelease: "lens-agents-platform-v0.31.0"
 ---
 
 # Lens Agents — Platform Admin
@@ -89,8 +89,9 @@ for managed). **Mode 1** = agent outside the sandbox ("govern its tools"); **Mod
 
 Two admin tiers (see `references/rbac.md`): a human's **OIDC** session that's an
 org admin has **full** control (incl. org-scoped ops); an **API token** is never
-an org admin but administers any **project** its team holds **ADMIN** role on
-(policies, credentials, sandboxes, bindings). A default **sandbox** identity is
+an org admin but administers any **project** where it holds the **ADMIN** role
+directly (policies, credentials, sandboxes, bindings) — an org admin grants it with
+`set_project_member`. A default **sandbox** identity is
 capped at MEMBER, but you can make a sandbox agent a project admin ("Odin") by
 granting it the project's built-in `nexus-api` connector with a project-admin
 token credential (`connectors[].credentialId`); it then gets the api-token-visible
@@ -134,7 +135,7 @@ hot-load.
 | Wire upstream MCP servers | `references/mcp-connectors.md` |
 | Connect an agent to Slack (two tokens, Socket Mode) | `references/playbooks.md`, `references/agents.md` |
 | Launch **and configure** a managed (Prism) agent | `references/agents.md` |
-| Orgs / teams / projects / tokens (+ how a token gets project-admin) | `references/tenancy.md` |
+| Orgs / projects / project members / tokens (+ how a token gets project-admin) | `references/tenancy.md` |
 | Spending, usage, audit | `references/governance.md` |
 | Avoid the traps (fail-open/closed, thresholds, caps, reserved names) | `references/gotchas.md` |
 | Step-by-step recipes for the common jobs | `references/playbooks.md` |

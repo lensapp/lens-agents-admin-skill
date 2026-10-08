@@ -56,14 +56,18 @@ secrets into a credential. The catalog is a JSON Secret mounted by the chart —
     "authorizationServerUrl": "https://…", "tokenUrl": "https://…",
     "clientId": "…", "clientSecret": "…",
     "upstreamUrls": ["https://mcp.example.com/mcp"],
-    "defaultScopes": "…", "prompt": "consent", "accessType": "offline" }] }
+    "defaultScopes": "…", "prompt": "consent", "accessType": "offline",
+    "manageAccessUrl": "https://…" }] }
 ```
 
-`clientSecret`, `defaultScopes`, `prompt`, and `accessType` are optional; `upstreamUrls` needs
+`clientSecret`, `defaultScopes`, `prompt`, `accessType`, and `manageAccessUrl` are optional; `upstreamUrls` needs
 at least one entry. Endpoints must be HTTPS (HTTP only for loopback). `prompt` is
 space-separated `none` / `login` / `consent` / `select_account`, with `none` only
 on its own. `accessType` (`offline` / `online`) is sent as `access_type` — Google
 issues a refresh token only with `offline`, so pair it with `prompt: "consent"`.
+`manageAccessUrl` is where a signed-in person picks what the application may reach
+(e.g. a GitHub App's installation page) — HTTPS, no userinfo or fragment, never
+sent to the provider, and changing it leaves credentials intact.
 **Restart all replicas after changing it**; registration secrets are
 never copied to the database.
 
@@ -76,7 +80,12 @@ never copied to the database.
 - Credential views report `oauthApplicationAvailable`,
   `oauthApplicationDisplayName`, and `oauthApplicationError`, so a credential whose
   application no longer resolves (removed or changed in the catalog) shows up as
-  broken rather than silently failing.
+  broken rather than silently failing; while it resolves they also report
+  `oauthApplicationManageAccessUrl`.
+- `list_mcp_server_credentials` reports `signedIn` and `refreshFailed` for OAuth
+  Login credentials — `refreshFailed` means the newest sign-in's refresh failed;
+  sign in again.
+- GitHub's `bad_refresh_token` asks for re-authorization, like `invalid_grant`.
 
 ### Extra redirect URIs and the callback outcome
 

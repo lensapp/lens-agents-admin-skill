@@ -1,7 +1,7 @@
 # Playbooks — ordered recipes
 
 Run these as an admin — an OIDC org-admin session, or (for project-scoped steps)
-an API token on a team with project-ADMIN role. Confirm
+an API token with the project-ADMIN role. Confirm
 each heavy step with the user first. Substitute `<...>` from earlier outputs.
 For exact tool params, read `tools/list` / the OpenAPI spec — these show the
 *sequence*, not full payloads.
@@ -15,7 +15,7 @@ connect to the global `/mcp`), then continue with playbook 1 below.
 
 1. `list_orgs` → pick the org id. **If it's empty** (common on a fresh install): you're on an OIDC session here, so **ask the user for an org name and `create_org { name, displayName }` yourself**, then use its id — don't send them to the UI. (Only an API-token principal must defer org creation to a human.) *(tenancy.md)*
 2. `create_project { orgId, name: "demo", displayName: "Demo" }` → note `projectId`. *(tenancy.md)*
-3. `create_policy { projectId, name: "starter", managedInference: { enabled: true, provider: "<installed-provider>" } }` → note `policyId`. *(policies.md — set the provider the platform was installed with: bedrock | azure | bedrock-mantle | openai | openrouter | litellm. **Don't copy `bedrock` blindly** — it is always selectable even with no credential behind it, and Prism's `LLM_PROVIDER` defaults to it too, so all three places "match", the stack comes up clean, and every call fails. `list_inference_providers { orgId }` shows which backends this org can actually use and whose key each runs on.)*
+3. `create_policy { projectId, name: "starter", managedInference: { enabled: true, provider: "<installed-provider>" } }` → note `policyId`. *(policies.md — set the provider the platform was installed with: bedrock | azure | bedrock-mantle | openai | openrouter | litellm. **Don't copy `bedrock` blindly** — a policy still accepts it and Prism's `LLM_PROVIDER` defaults to it, but it works only with a Bedrock token, an org Bedrock key, or AWS credentials the platform found at boot; otherwise all three places "match", the stack comes up clean, and every call fails. `list_inference_providers { orgId }` shows which backends this org can actually use and whose key each runs on.)*
 4. `create_policy_binding { projectId, name: "starter-sandboxes", policyIds: ["<policyId>"], subjects: [{ kind: "all_sandboxes" }] }`. *(policies.md)*
 5. `create_sandbox { projectId, name: "prism-demo", image: "ghcr.io/lensapp/prism-agent:latest", command: "exec ./start.sh", cpu: "500m", memory: "2Gi", env: {...}, volumes: [{mountPath:"/data"}], exposedPorts: [{name:"chat",port:3003,auth:"public"}], policyIds: ["<policyId>"] }`. *(agents.md — `cpu`/`memory` required, ≤ the SANDBOX_CPU/SANDBOX_MEMORY ceiling)*
 6. Poll `get_sandbox` until `state=started` and `exposedPorts[0].url` is set.
@@ -26,7 +26,7 @@ connect to the global `/mcp`), then continue with playbook 1 below.
 
 ## 2. "I want a Kubernetes SRE agent"
 
-1. Connect the cluster — **three steps**: `create_cluster { projectId, name: "prod-eks", displayName, relayUrl: "tunnel://" }` (capture the one-time `tunnelToken`) → **deploy the relay into that cluster** via the `nexus-kube-relay` Helm chart → **apply cluster RBAC** binding a Role to the impersonated identity (a sandbox is user `sandbox:<sandboxId>` in group `<org>/<project>`; an API token is user `agent:<tokenName>` in group `<org>/<team>`), or the agent authenticates but can do nothing. Full runbook incl. the local-trial in-cluster tunnel URL (`ws://localhost:...` fails from a pod) and the RBAC manifest: *(connections.md)*
+1. Connect the cluster — **three steps**: `create_cluster { projectId, name: "prod-eks", displayName, relayUrl: "tunnel://" }` (capture the one-time `tunnelToken`) → **deploy the relay into that cluster** via the `nexus-kube-relay` Helm chart → **apply cluster RBAC** binding a Role to the impersonated identity (a sandbox is user `sandbox:<sandboxId>` in group `<org>/<project>`; an API token is user `agent:<tokenName>` in groups `<org>/<project>` and `<org>/<project>:<role>`), or the agent authenticates but can do nothing. Full runbook incl. the local-trial in-cluster tunnel URL (`ws://localhost:...` fails from a pod) and the RBAC manifest: *(connections.md)*
 2. Write a policy that grants the cluster + needed egress + inference:
    `create_policy { projectId, name: "sre", networkDefaultVerdict: "deny", allowedDomains: [...], integrations: [{type:"kubernetes",name:"prod-eks"}], managedInference: {enabled:true, provider:"..."} }`. *(policies.md)*
 3. `create_policy_binding { ..., policyIds:["<policyId>"], subjects:[{kind:"all_sandboxes"}] }`.
@@ -69,7 +69,7 @@ token through the project's built-in **`nexus-api` connector**: the platform
 dispatches that connector's first-party tools as the token's principal, so Odin
 sees `create_policy`, `create_sandbox`, etc. as **native tools** — the token stays
 server-side (encrypted), **never in Odin's env**. Needs an admin who can mint
-tokens + grant team access (OIDC org-admin). Ask **which project(s)** Odin manages.
+tokens + set project members (OIDC org-admin). Ask **which project(s)** Odin manages.
 
 > **Set an org ceiling first (highly recommended).** A project-admin agent can
 > write its project's policies/bindings and launch sandboxes, so without a ceiling
@@ -91,28 +91,26 @@ tokens + grant team access (OIDC org-admin). Ask **which project(s)** Odin manag
 > `get_sandbox_effective_policy` to see what the ceiling clipped. *(policies.md — note
 > the two axes: `all_sandboxes` caps sandboxes, `everyone`/`api_token` caps people.)*
 
-1. For each managed project, create a **dedicated** least-privilege team with
-   **project-ADMIN** role — do **not** elevate an existing shared team (it may carry
-   many users + throwaway agent tokens you'd be making project admins):
-   `create_team { orgId, name:"<scope>-admins", displayName }` → `set_team_project_access { teamId, projectId, role:"ADMIN" }`. *(tenancy.md)*
-2. `create_api_token { orgId, name:"odin-<scope>" }` → capture the raw token **once**.
+1. `create_api_token { orgId, name:"odin-<scope>" }` → capture the raw token **once**
+   and its id. Use a **dedicated** token — don't elevate one other agents hold.
    **Scope it least-privilege** — admin on only the projects Odin should manage
    (Odin's authority *is* this token's scope). *(tenancy.md)*
-3. `add_team_member { teamId, memberType:"AGENT", apiTokenId:"<id>" }` for each
-   managed project's team → the token is now project-admin there.
-4. Pick a **home project** for Odin's sandbox. **Don't create a connector** — use
+2. For each managed project: `set_project_member { projectId, apiTokenId:"<id>", role:"ADMIN" }`
+   → the token is now project-admin there, and nowhere else (OIDC org-admin only;
+   refused from a sandbox session). Check with `list_project_members`. *(tenancy.md)*
+3. Pick a **home project** for Odin's sandbox. **Don't create a connector** — use
    the project's reserved **`nexus-api`** system connector (it already points at the
    platform's own `/mcp`): `list_mcp_servers { projectId:<home> }` → grab the
    `nexus-api` server id. *(mcp-connectors.md — `create_mcp_server` refuses to shadow it.)*
-5. `create_mcp_server_credential { projectId:<home>, serverId:"<nexus-api id>", name:"odin-<scope>-token", authType:"static", staticValue:"<token>" }` —
+4. `create_mcp_server_credential { projectId:<home>, serverId:"<nexus-api id>", name:"odin-<scope>-token", authType:"static", staticValue:"<token>" }` —
    stores the token encrypted, server-side. This tool is **OIDC-only**, so a human
    session does this step (Odin itself never can).
-6. `create_policy { projectId:<home>, name:"odin-admin", managedInference:{enabled:true, provider:"..."}, connectors:[{ connectorId:"<nexus-api id>", allowedTools:[<admin tools>], credentialId:"<cred id>" }] }`.
+5. `create_policy { projectId:<home>, name:"odin-admin", managedInference:{enabled:true, provider:"..."}, connectors:[{ connectorId:"<nexus-api id>", allowedTools:[<admin tools>], credentialId:"<cred id>" }] }`.
    The connector grant's **`credentialId`** is what makes those first-party tools
    run as the token's principal. Only **api-token-visible** tools exist in the
    `nexus-api` catalog, so those are the only names `allowedTools` can usefully list. *(policies.md)*
-7. `create_sandbox { projectId:<home>, name:"odin", image:"ghcr.io/lensapp/prism-agent:latest", command:"exec ./start.sh", cpu:"500m", memory:"2Gi", env:{ LLM_PROVIDER:"..." }, volumes:[{mountPath:"/data"}], exposedPorts:[{name:"web",port:3003,auth:"private"}], policyIds:["<homePolicyId>"] }`; poll `get_sandbox` for the chat URL. Attaching the policy **to the sandbox** here scopes admin to *this* sandbox — don't bind it `all_sandboxes` or you elevate every sandbox in the project. Prefer `auth:"private"` (requires a platform session to reach the chat) for a project-admin agent; `"public"` only for a throwaway trial. *(agents.md — `cpu`/`memory` required)*
-8. Seed the admin skill so Odin knows it's an admin — no platform tool writes into
+6. `create_sandbox { projectId:<home>, name:"odin", image:"ghcr.io/lensapp/prism-agent:latest", command:"exec ./start.sh", cpu:"500m", memory:"2Gi", env:{ LLM_PROVIDER:"..." }, volumes:[{mountPath:"/data"}], exposedPorts:[{name:"web",port:3003,auth:"private"}], policyIds:["<homePolicyId>"] }`; poll `get_sandbox` for the chat URL. Attaching the policy **to the sandbox** here scopes admin to *this* sandbox — don't bind it `all_sandboxes` or you elevate every sandbox in the project. Prefer `auth:"private"` (requires a platform session to reach the chat) for a project-admin agent; `"public"` only for a throwaway trial. *(agents.md — `cpu`/`memory` required)*
+7. Seed the admin skill so Odin knows it's an admin — no platform tool writes into
    Odin's container, so you can't write its `/data` from here. Instead **ask Odin over its chat to install the skill itself**,
    giving it the repo link `https://github.com/lensapp/lens-agents-admin-skill`.
    First add the egress its install path needs to Odin's policy `allowedDomains`
@@ -121,7 +119,7 @@ tokens + grant team access (OIDC org-admin). Ask **which project(s)** Odin manag
    (and `raw.githubusercontent.com`); `npx skills add …` additionally needs
    `registry.npmjs.org`. Then give it an admin persona via `rename_self`/`update_soul`
    or `AGENT_NAME`. *(agents.md, policies.md)*
-9. **Wrap up:** hand the user Odin's chat URL + the platform web UI; state its
+8. **Wrap up:** hand the user Odin's chat URL + the platform web UI; state its
    scope (**exactly its token's projects** — project-admin, never org-admin), that
    an org ceiling bounds what it can grant, and the kill switch (`revoke_api_token`
    disables it immediately; follow with `stop_sandbox` to cut a live session).
@@ -173,7 +171,9 @@ at boot, so it must be real before the restart in step 5).
 5. Attach the policy to the agent's sandbox alongside its existing ones:
    `update_sandbox { …, policyIds:[<existing…>, "<slackPolicyId>"] }`. Attaching is
    metadata-only (no restart), and Prism reads `SLACK_*` **at boot** — so
-   `stop_sandbox` then `start_sandbox` to inject the tokens and connect. Make sure the
+   `restart_sandbox` (or `stop_sandbox` then `start_sandbox`) to inject the tokens
+   and connect. Restart returns before teardown: poll `get_sandbox` until `state`
+   is `started` **and** `health.startedAt` has changed. Make sure the
    **real** bot token is set first: `auth.test` runs at config load and *throws* on a
    bad token (the Socket Mode connect itself is fail-open). *(agents.md)*
 6. Verify with `query_audit_trail { source:"sandbox-proxy", actorId:"<sandboxId>" }` —
