@@ -123,7 +123,9 @@ reach models via the managed endpoint — the deny rule is the only guardrail.
 ## Defaults & platform config
 **The platform sets no model.** For an Anthropic-SDK agent set `ANTHROPIC_MODEL`
 in the policy env (or let the agent pick its own; the web UI's agent templates
-pre-fill one). Managed model config: temp **0.3**, max
+pre-fill one). Prism agents the **client API** creates default to
+`BEDROCK_MODEL_ID=global.anthropic.claude-haiku-5-5` (was Sonnet 5.5) and
+`imageUpdate.auto`. Managed model config: temp **0.3**, max
 **16k** output tokens, **100**-step limit, **30k**-char tool-output truncation,
 prompt caching auto. Install-time env (every token optional):
 `NEXUS_BEDROCK_TOKEN` (+ optional `NEXUS_BEDROCK_AMBIENT_CREDENTIALS`), `NEXUS_AZURE_BASE_URL` + `NEXUS_AZURE_TOKEN`,

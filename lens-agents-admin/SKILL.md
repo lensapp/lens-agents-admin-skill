@@ -17,7 +17,7 @@ compatibility: >-
   Lens Agents platform MCP endpoint.
 metadata:
   version: "1.0"
-  platformRelease: "lens-agents-platform-v0.31.0"
+  platformRelease: "lens-agents-platform-v0.32.0"
 ---
 
 # Lens Agents — Platform Admin
@@ -120,13 +120,14 @@ claude mcp add --transport http lens-agents <publicUrl>/mcp && claude mcp login 
 
 Open the sign-in URL in the user's **system browser** (not an embedded one). If
 tools don't appear in-session after login, start a fresh run — they don't always
-hot-load.
+hot-load. A `503 fleet_enrollment_required` on `/mcp` means the install hasn't
+enrolled with Lens Hub yet — see `references/install-local.md` Step 4.
 
 ## Reference map
 
 | To… | Read |
 |-----|------|
-| Install the platform from nothing (minikube→Helm→activate) | `references/install-local.md` |
+| Install the platform from nothing (minikube→Helm→enroll with Lens Hub) | `references/install-local.md` |
 | Understand *why* the platform works this way | `references/concepts.md` |
 | Know the platform internals (MCP endpoints, principals, proxies, network) | `references/architecture.md` |
 | Write policies + bindings correctly | `references/policies.md` |
@@ -135,7 +136,7 @@ hot-load.
 | Wire upstream MCP servers | `references/mcp-connectors.md` |
 | Connect an agent to Slack (two tokens, Socket Mode) | `references/playbooks.md`, `references/agents.md` |
 | Launch **and configure** a managed (Prism) agent | `references/agents.md` |
-| Orgs / projects / project members / tokens (+ how a token gets project-admin) | `references/tenancy.md` |
+| Orgs / projects / project members / tokens (+ how a token gets project-admin, workload identity federation) | `references/tenancy.md` |
 | Spending, usage, audit | `references/governance.md` |
 | Avoid the traps (fail-open/closed, thresholds, caps, reserved names) | `references/gotchas.md` |
 | Step-by-step recipes for the common jobs | `references/playbooks.md` |

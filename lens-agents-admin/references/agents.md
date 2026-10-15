@@ -10,7 +10,7 @@ image.
 ## Launch — `create_sandbox` and lifecycle
 Tools: `list_sandboxes`, `get_sandbox`, `create_sandbox`, `update_sandbox`,
 `start_sandbox`, `stop_sandbox`, `restart_sandbox`, `delete_sandbox`, `list_sandbox_revisions`,
-`rollback_sandbox`, `get_sandbox_effective_policy`.
+`rollback_sandbox`, `update_sandbox_image`, `get_sandbox_effective_policy`.
 
 Semantics that bite:
 - **Policies attach to the sandbox itself** (`policyIds: [...]` — the field was
@@ -24,6 +24,12 @@ Semantics that bite:
   `private` (the default) = requires a platform sign-in with access to the project.
   On a `public` port the caller's own `Authorization` header reaches the app (e.g.
   a bot's JWT); on `private` ports it is stripped.
+- **Volume size:** `volumes[].size` (a whole-number quantity, e.g. `"20Gi"`) sets
+  the PVC request — **at create only** (`volumes` isn't updatable). Above the
+  platform's `SANDBOX_DISK` ceiling → 400 `disk X exceeds the maximum allowed (Y)`;
+  omitted = the default size (`SANDBOX_K8S_AGENT_VOLUME_SIZE`, `10Gi`). An
+  unknown key in a volume entry → 400. Local Docker ignores it; an existing PVC
+  is never resized (a smaller one only logs a warning). CLI: `--volume PATH[:SIZE]`.
 - **`cpu` and `memory` are required** (K8s quantities, e.g. `cpu: "500m"`,
   `memory: "2Gi"` / `"512Mi"`) and must **not exceed** the platform's
   `SANDBOX_CPU` / `SANDBOX_MEMORY` ceilings (Helm chart default `500m` / `2Gi`,
@@ -34,6 +40,9 @@ Semantics that bite:
   distroless are **unsupported** (see `gotchas.md`).
 - After create, **poll `get_sandbox`** until `state` is `started` and
   `exposedPorts[0].url` is populated — that URL is the agent's chat UI.
+  `completed` means the main command exited 0; a non-zero exit is `error` with
+  `exitCode` set (exec still works in both until the sandbox stops). A finished
+  main command is **not run again** — not on a new runtime, not by auto-start.
   `started` means the container runs, not that the agent answers yet: REST
   `GET /v1/projects/{projectId}/sandboxes/{sandboxId}/port-readiness` reports
   `answering`.
@@ -61,6 +70,45 @@ Semantics that bite:
     --auto-start` (`update` also takes `--clear-auto-stop`, `--clear-auto-delete`,
     `--clear-auto-start`; durations are `m`/`h`/`d`, or `0`); `nexusctl sandbox
     describe` shows when each timer is due.
+- **Spec additions** (same fields on REST and MCP `create_sandbox`/`update_sandbox`):
+  - `user` (`USER` or `USER:GROUP`, a name from the image or a numeric id;
+    overrides the image's USER — an unknown name stops the start) and `workdir`
+    (absolute; created if the image lacks it; default `WORKSPACE_PATH` env, else
+    the image's WORKDIR). A change is a new revision + restart; `null` goes back
+    to the default (the image's USER; for `workdir`, the default above). CLI
+    `--user`/`--workdir`, `--clear-user`/`--clear-workdir`.
+  - `files: [{path, content}]` — written (0644, owned by the agent user) on
+    **every start**, before the agent runs; the agent's edits are lost at the
+    next start. ≤256 files, 128 KiB each, 1 MiB total; absolute paths without
+    `.`/`..`, each part ≤255 bytes, not under `/.lens`; secret-looking names
+    (`.env*`, `.npmrc`, `id_rsa`, `*.pem`, …) are refused.
+  - `scripts: [{when:"pre-start", run, user?, description?}]` — run in order with
+    `sh -e` after the files and the network policy, before the agent, on every
+    start; one that fails stops the sandbox. ≤32, 128 KiB each, 512 KiB total.
+    **Not secret** — returned on reads (secrets go in as credentials). On
+    Kubernetes an HTTP health check's `initialDelaySeconds` must outlast them.
+  - With an image whose supervisor predates files/scripts the sandbox doesn't
+    start (its supervisor is refused, "supervisor is too old"; the create/update
+    itself succeeds). `list_sandboxes` omits `files`/`scripts`; `get_sandbox` has
+    them. nexusctl sets files, scripts and `imageUpdate` only from a spec file (`-f`).
+- **Image updates:** `imageUpdate: {auto}` follows the image's tag (it must have
+  one and not be pinned to a digest). `imageUpdateStatus` (`current`,
+  `available`, `checkedAt`, `checkError`, `heldDigest`) reports a newer digest;
+  `auto: true` also rolls it out as a new revision once the sandbox is idle (10
+  min) or at the latest an hour after it was found, and a rollout that errors
+  within 10 min goes back and holds that digest. Never an older digest; toggling
+  it doesn't restart. Take one by hand with `update_sandbox_image { projectId,
+  sandboxId, digest }` (REST `POST …/sandboxes/{sandboxId}/update-image`) —
+  `digest` must equal `imageUpdateStatus.available` or it's 409; project admin.
+  Revisions show `resolvedImage`; automatic ones are `createdBy: system`.
+  Tuning is env only (`IMAGE_UPDATE_*`), not Helm.
+- **Logs:** REST `GET /v1/projects/{projectId}/sandboxes/{sandboxId}/logs`
+  (`tailLines`, default 500, max 10000; `follow`) is a server-sent-events stream —
+  `log` frames `{text}`, ending with `end {reason: eof|max-duration}` or `error`;
+  keepalive every 15 s; a follow ends after 60 min. Project members only, never a
+  sandbox token; **409** when there's no current runtime, and only the current
+  runtime's logs exist. **No MCP tool** — CLI `nexusctl sandbox logs <sandbox>
+  --project <p> [-f] [--tail N]`, or the sandbox page's **Logs** tab.
 - **Without a timer, a sandbox runs until stopped.** `stop_sandbox` for an
   immediate cutoff (e.g. after revoking access — revocation alone doesn't kill a
   running process).
@@ -68,7 +116,10 @@ Semantics that bite:
 ## Prism launch env (set in `create_sandbox` `env`)
 The container is one agent = one `AGENT_ID` = one `/data` SQLite DB = one LLM
 provider. Image `ghcr.io/lensapp/prism-agent:latest`, command `exec ./start.sh`,
-`/data` volume, chat port `3003`.
+`/data` volume, chat port `3003`, and `imageUpdate: {auto: true}` so it picks up
+new `:latest` releases while idle (the web UI template does this; it replaced
+`EXIT_ON_UPDATE`, and existing Prism sandboxes with `EXIT_ON_UPDATE=1` were
+switched over on upgrade).
 
 - **Identity (first boot only — ignored on restarts of a reused `/data`):**
   `AGENT_ID`, `AGENT_NAME` (default `Prism`), `TEAM_NAME`.
