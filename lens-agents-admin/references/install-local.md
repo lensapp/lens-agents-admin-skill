@@ -7,13 +7,14 @@ says "install Lens Agents" (no other context), do this, no need to ask. (A
 production deployment is a guided engagement; point them to Getting Started /
 contact us — see the end of this file.) It's the host-shell phase — **there is
 no MCP yet**; the admin `/mcp` only becomes reachable after Step 3 (port-forward)
-+ Step 4 (activation). Run these as the coding agent doing the install; pause
-only for the human's browser sign-ins (Steps 4 and the Step 5 MCP login).
++ Step 4 (Lens Hub enrollment). Run these as the coding agent doing the install;
+pause only for the human's browser steps (the Step 4 Lens Hub connect and sign-in,
+and the Step 5 MCP login).
 
 > **Before you start — get a full-access shell.** Every step below runs real
 > **host** commands (Docker/OrbStack, minikube, kubectl, Helm) that need the
 > **Docker socket** and **network** (image pulls, the Helm OCI chart,
-> activation). A restricted/read-only or no-network agent sandbox **cannot**
+> Lens Hub enrollment). A restricted/read-only or no-network agent sandbox **cannot**
 > complete this. **Ask the user once, up front, for full/unsandboxed shell
 > permissions** (e.g. Codex: full-access mode) — don't start sandboxed and hit
 > the wall mid-install. Two common gotchas: (1) the container runtime may be
@@ -43,7 +44,8 @@ only for the human's browser sign-ins (Steps 4 and the Step 5 MCP login).
 | `openssl` | `openssl version` | generates the encryption key |
 | `curl` | `curl --version` | health check |
 
-Plus: outbound internet, a **Lens ID** account (sign up at `app.k8slens.dev`),
+Plus: outbound internet, a **Lens ID** account (sign up at `app.k8slens.dev`; it
+signs in to both Lens Hub and the platform),
 and **one inference-provider credential** — an **OpenRouter** API key (fewest
 steps: no cloud account, no IAM, no region), an **AWS Bedrock** API key, an
 **Azure (Microsoft Foundry)** resource URL + API key with a Claude deployment,
@@ -176,15 +178,45 @@ kubectl get pods   # lens-agents-* and lens-agents-postgresql-* should be Runnin
 kubectl port-forward svc/lens-agents 3002:3002   # keep running
 curl -fsS http://localhost:3002/health && echo OK
 ```
+`/health` answers `{"status":"ok","version":"<x.y.z>"}`, so it doubles as a
+version check (the web UI sidebar header shows it too, "Platform · v…").
 The forward binds `127.0.0.1`; `*.localtest.me`→127.0.0.1 too, so the platform
 and every sandbox UI are reachable over this one forward. (If your resolver
 blocks loopback DNS, add an `/etc/hosts` entry or a dnsmasq wildcard.)
 
-## Step 4 — Activate and sign in (needs the human + their system browser)
+## Step 4 — Enroll with Lens Hub and sign in (needs the human + their system browser)
 
-1. Open `http://localhost:3002`.
-2. Follow the activation device-flow prompt (registers this install with Lens Cloud).
-3. Sign in with Lens ID. **Whoever creates the organization becomes its admin** — required to create sandboxes. (If `config.ownerEmails` is set, only those accounts may create orgs; empty leaves it open to any signed-in user.)
+Every install must **enroll with Lens Hub** before it does any agent work: until
+then REST and `/mcp` answer `503 fleet_enrollment_required` (health, sign-in and
+the setup screen stay up).
+
+1. Read the setup code the chart generated (`helm install` prints this command too):
+   ```bash
+   kubectl -n default get secret lens-agents-hub-setup -o jsonpath='{.data.setupCode}' | base64 -d
+   ```
+   (`<release>-hub-setup`, key `setupCode`, format `xxxx-xxxx-xxxx-xxxx`; kept across upgrades.)
+2. Open `http://localhost:3002`. The **Connect to Lens Hub** screen asks for the
+   **Setup code** → **Continue to Lens Hub**. A wrong code is refused after ~1 s
+   (no lockout).
+3. In Lens Hub, sign in with Lens ID and pick the owner and a fleet name. Lens Hub
+   registers and enrolls the fleet and sends the browser back to the platform.
+4. Sign in with Lens ID (through the sign-in client Lens Hub provisioned). **Whoever creates the organization becomes its admin** — required to create sandboxes. (If `config.ownerEmails` is set, only those accounts may create orgs; empty leaves it open to any signed-in user.)
+
+Check it: `nexusctl installation status` shows `Enrolled:` and `Hub connection:`;
+REST `GET /v1/installation` reports `enrolled` and `connection`
+(`connecting`|`connected`|`unavailable`).
+
+- **Without the setup screen** (GitOps, production): register the fleet in Lens
+  Hub yourself, put its **Fleet Access Token** (`lnshub_fleet_…` — never a Lens
+  Hub user PAT) in a Secret under `accessToken`, and set `hub.fleetId` +
+  `hub.accessTokenSecret.name`. These win over a fleet connected from the setup
+  screen. With a renderer that has no cluster access (Argo CD, `helm template`)
+  set `hub.setup.existingSecret`, or every render makes a new code;
+  `hub.setup.enabled=false` offers only the Helm values. `hub.publicUrl` is where
+  people open Lens Hub when that differs from the chart's default `hub.url`.
+- Once enrolled, agent work continues through Lens Hub outages (the UI shows a
+  warning banner). Only a revocation in Lens Hub ends it — the install then
+  returns to the setup screen.
 
 ## Step 5 — Connect to the admin MCP and onboard
 
@@ -237,6 +269,8 @@ and the Prism chat URL (`exposedPorts[0].url`). See `agents.md` for the exact
 | Chat URL won't resolve | Resolver blocks loopback DNS — `/etc/hosts` entry or dnsmasq. |
 | Prism UI loads but agent doesn't answer | No/wrong inference credential, or provider mismatch across install/policy/sandbox. |
 | Pods `Pending` | Cluster too small — `minikube stop/start -p lens-agents --cpus=4 --memory=6g`. |
+| REST / `/mcp` answers `503 fleet_enrollment_required` | Not enrolled with Lens Hub yet — do Step 4. |
+| A valid Lens ID token gets `401` on REST / `/mcp` | The client gate: the token was issued to a client that is neither the install's own nor in `oidc.delegatedClients`. The log line reads "Client gate: refused this token" with a `reason`. See Production readiness below. |
 
 Logs: `kubectl logs deploy/lens-agents --tail=100`; `kubectl get pods -n lens-agents-sandbox`.
 
@@ -249,6 +283,19 @@ kubectl delete pvc -l app.kubernetes.io/instance=lens-agents --ignore-not-found
 minikube delete -p lens-agents   # removes only this dedicated profile
 ```
 
+## Upgrading from 0.31 or earlier
+
+- An install **activated against Lens Cloud** (the old flow) forgets that
+  activation on upgrade: its installation ID, Lens Cloud sign-in client and
+  license are cleared; users, orgs, projects and data stay. It then enrolls with
+  Lens Hub as a new fleet (Step 4), and **everyone signs in again once**.
+- `helm upgrade --reuse-values` from an older chart fails on the missing
+  `hub.accessTokenSecret` — pass your values file with `-f` instead.
+- **Customer SSO** must set `oidc.useExternalProvider=true` (with `oidc.clientId`
+  — without it the platform won't start), or it enrolls as Lens ID; the startup
+  log names the mode it enrolls with.
+- `nexusctl installation activate` is gone; `nexusctl installation status` remains.
+
 ## Production readiness (tell the user)
 
 This trial is deliberately minimal: container isolation, port-forward access, a
@@ -256,12 +303,47 @@ bundled DB, a single install-time inference credential. Production adds microVM
 sandbox isolation (Kata/gVisor runtime classes), real ingress + TLS, a managed
 database, RBAC, and hardened credential management — a guided-evaluation
 engagement, not self-serve. The chart can also deploy the Lens Agents client API
-as a subchart (`bff.enabled`, off by default; with the default
-`bff.nexusAuth: exchange` it requires `bff.tokenExchange.clientId` and
-`bff.tokenExchange.existingSecret` — `forward` needs neither and is refused while
-`oidc.directAccessRole` is set).
+as a subchart (`bff.enabled`, off by default; the default
+`bff.nexusAuth: exchange` requires `bff.tokenExchange.clientId` and
+`bff.tokenExchange.existingSecret`, and while the client gate is on — the default
+on Lens ID, see below — that clientId must also be in `oidc.delegatedClients`.
+`forward` is refused while `oidc.directAccessRole` is set; with the client gate on
+it needs `bff.oidc.allowedAzp`, each of those clients delegated. Or set
+`oidc.clientGate=never`. The install fails otherwise).
+
+**Client gate (on by default for Lens ID).** `oidc.clientGate`
+(`OIDC_CLIENT_GATE`): `auto` (default) | `always` | `never` — any other value
+fails the chart. `auto` turns it on whenever the install signs in through the
+Lens ID client Lens Hub provisioned (no `oidc.clientId`, `oidc.useExternalProvider`
+off). It then accepts only access tokens (`typ: Bearer`) issued to that client or
+to a client in `oidc.delegatedClients` (`OIDC_DELEGATED_CLIENTS`); anything else
+gets **401** — no role needed. Until that client exists only delegated clients
+get through. `nexusctl` and MCP clients keep working: the platform signs them in
+through its own client. A set `oidc.clientId` stays the sign-in client after
+enrollment.
 A pre-provisioned `oidc.clientId` must also accept `<publicUrl>/oauth/callback`,
 or MCP-client sign-ins (Claude Code, Codex) fail with `Invalid parameter:
 redirect_uri`. Behind an ingress, keep its header limit at least
 `config.maxHeaderBytes` (default `32768`). `sandboxIngress.corsOrigins` lists
 origins a web UI may call private sandbox ports from.
+
+**Access webhooks.** `accessWebhooks.urls` (`ACCESS_WEBHOOK_URLS`) plus
+`accessWebhooks.secret` or `existingSecret` (≥32 bytes; URLs `https`, or `http`
+to in-cluster or loopback hosts) and `timeoutMs` (default `5000`, max `30000`).
+When a **person** loses project access (removed from a project or the org,
+demoted from org admin, project or org deleted — a role change that keeps access
+sends nothing), the platform POSTs `access.revoked`
+`{id, type, occurredAt, userSub, projectIds}`, signed
+`X-Lens-Agents-Signature: t=<unix>,v1=<hex HMAC-SHA256 of "<t>.<body>">` with
+`X-Lens-Agents-Event-Id`. Delivery is at least once, retried with backoff for
+24 h; `400`/`410`/`413`/`422` drop the event. The client API consumes it for its
+push notifications (`bff.push.*`, off by default, iOS through Lens Hub; `bff.hub`
+must repeat the top-level `hub.url`/`hub.fleetId`).
+
+**Other values.** `sandbox.k8s.disk` (`SANDBOX_DISK`) caps a sandbox's volume
+size; empty falls back to `sandbox.k8s.agentVolumeSize`
+(`SANDBOX_K8S_AGENT_VOLUME_SIZE`, the default size), else `10Gi` — checked at
+startup, and a default above the ceiling won't start. `workloadIdentity.enabled`
+(default `true`) and `workloadIdentity.sessionTtlSeconds` (default `3600`) — see
+`tenancy.md`. Install the matching CLI with `curl -fsSL <publicUrl>/install.sh | sh`
+(`nexusctl`; refused over plain HTTP except on loopback).

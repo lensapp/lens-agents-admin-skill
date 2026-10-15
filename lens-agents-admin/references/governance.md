@@ -69,7 +69,9 @@ inference endpoint. Keep provider hosts denied in policy if a cap has to hold.
 ## Usage & cost
 
 `get_usage_cost_summary` (totals with breakdowns by model/provider/actor/
-project) and `get_usage_cost_timeseries` (cost over time).
+project) and `get_usage_cost_timeseries` (cost over time; with `groupBy`, each
+bucket also carries `groupTokens`, the total tokens per group — the org
+Overview's average cost-per-token chart).
 
 ## Audit trail
 

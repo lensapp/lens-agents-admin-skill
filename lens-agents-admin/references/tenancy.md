@@ -1,4 +1,4 @@
-# Tenancy — orgs, projects, project members, API tokens
+# Tenancy — orgs, projects, project members, API tokens, workload identity
 
 > **Exact parameters aren't here — read the live schema.** For any tool, use `tools/list` (automatic over MCP) or the REST OpenAPI at `<publicUrl>/v1/openapi.json` (`/v1/docs` for the UI). This file covers what those can't: what the tools are for and the non-obvious rules.
 
@@ -14,7 +14,7 @@ Tools: `list_orgs`, `get_org`, `create_org`, `update_org`, `delete_org`,
 `remove_org_member`.
 
 Call `list_orgs` and use the org it returns. **If it's empty** (common right
-after a fresh install/activation), **create the org yourself**: ask the user for
+after a fresh install/enrollment), **create the org yourself**: ask the user for
 an org name, then `create_org { name, displayName }`, and continue with its id — don't punt
 to the web UI. `create_org` works on an **OIDC session** (the coding-agent
 onboarding path), because an org is a human's tenant; it's the one creation an
@@ -42,6 +42,11 @@ Tools: `list_projects`, `get_project`, `get_project_public_key`,
 
 `create_project`'s `name` is a unique slug within the org; `displayName` is
 also required.
+
+`delete_project` and `delete_org` are refused with **409** while the project or
+org still has sandboxes ("…has N sandboxes. Delete them first.", or "…still being
+deleted. Try again shortly") — delete the sandboxes first. The web UI's org and
+project **Settings** pages rename and delete.
 
 ## Project members
 
@@ -93,3 +98,57 @@ roles**:
 Org-scoped actions (create org/project, mint/revoke tokens, org-level policies &
 bindings, project membership, project lifecycle) always require an **org-admin human
 (OIDC)**. See `rbac.md`.
+
+## Workload identity (federated API tokens)
+
+A workload — a CI job, a Kubernetes pod — exchanges **its own OIDC token** for a
+short-lived API-token session, so there's no stored secret. **No MCP tools**: REST,
+`nexusctl` and the web UI only (the org's **Trusted Issuers** page, the project's
+**Federated Tokens** page). Recipe: `playbooks.md` playbook 8.
+
+- **Trusted issuers** (org-scoped). Any org member reads them; only a **human org
+  admin** adds, changes or removes one (REST `/v1/orgs/{orgId}/trusted-issuers`;
+  changing one is REST only). The issuer and JWKS URLs must be `https`. Keys come
+  from pinned `jwks`, a `jwksUri`, or OIDC discovery — read once on save, and an
+  issuer whose keys can't be read is refused (pin them instead); private or
+  symmetric keys are refused. Every issuer needs an `audience` (nexusctl and the UI
+  default it to `defaultAudience`, `<publicUrl>/orgs/<orgId>`) and at least one
+  `requiredClaims` entry. The issuer URL can't change after creation.
+- **Presets** (`nexusctl workload-identity issuer add --preset …`, or the UI's
+  issuer type): `github` (`https://token.actions.githubusercontent.com`;
+  `repository_id`, `repository_owner_id`), `gitlab` (`https://gitlab.com`;
+  `project_id`, `namespace_id`), `buildkite` (`https://agent.buildkite.com`;
+  `organization_id`, `pipeline_id`), `google-cloud` (`https://accounts.google.com`;
+  `sub`), `kubernetes` (no URL — pass `--issuer`; `sub`).
+- **Federated tokens** (project-scoped) are API tokens with no secret and a
+  project role, `ADMIN` or `MEMBER`; their names share the org's API-token
+  namespace, and `list_api_tokens` doesn't show them. Project members list them;
+  a **human project admin** creates or revokes them (revoked, never deleted).
+- **Rules** say which workloads may act as a token: an issuer plus claims that
+  must **equal** their values exactly — no globs, non-string claims never match;
+  the first matching rule wins. A rule must pin every claim the issuer requires,
+  and adding a required claim to an issuer is 409 while some rule lacks it. Pin
+  ids that can't be re-registered (`repository_id`, not the name) and the branch
+  or environment.
+- **Exchange:** `POST /v1/workload-identity/token` (no auth) with
+  `{subject_token, subject_token_type:"urn:ietf:params:oauth:token-type:jwt", api_token_id}`
+  → `{access_token, token_type:"Bearer", expires_in}`; the `access_token` is an
+  `lns_` token with the federated token's role. The OIDC token needs `exp` and a
+  non-empty `sub` (30 s clock skew). The session lasts
+  `workloadIdentity.sessionTtlSeconds` (default 1 h) whatever the OIDC token's own
+  expiry, and ends when the token is revoked or its rule or issuer is deleted.
+  CLI: `nexusctl workload-identity token --federated-token <id> (--token-file <f> | --audience <aud>)`
+  (in GitHub Actions, `--audience` makes it fetch the runner's token itself).
+- **Refusals** are always the same 401. A token no rule matches writes an
+  `api-token.workload-exchange` failure audit row (at most one per token every 5
+  min); audit shows a workload as `<token name> (<sub>)`. Find out why with
+  **explain** — any project member, creates nothing: REST
+  `POST /v1/projects/{projectId}/workload-identity/explain`,
+  `nexusctl workload-identity explain --project <p> --token-file <f|-> [--federated-token <t>]`,
+  or **Explain a token** in the UI.
+- A minted session, like any API token, can't manage issuers, tokens or rules —
+  those need a human OIDC session. `workloadIdentity.enabled: false` turns the
+  feature off.
+- CLI: `nexusctl workload-identity issuer list|add|remove`,
+  `nexusctl federated-token list|create|delete`,
+  `nexusctl federated-token rule list|add|remove`.

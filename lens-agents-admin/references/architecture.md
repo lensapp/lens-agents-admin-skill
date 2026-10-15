@@ -22,7 +22,9 @@ sandbox-token → api-token → OIDC).
 - **api-token** — external callers / a per-project admin agent; Bearer (`lns_`
   prefix); **never org-admin**; sees the api-token-visible tool subset and can
   administer a **project** it holds **ADMIN** role on (a direct project role) — org-scoped
-  ops stay OIDC-only. See `rbac.md`.
+  ops stay OIDC-only. See `rbac.md`. A workload-identity exchange mints the same
+  kind of `lns_` session for a **federated** API token, with that token's project
+  role (see `tenancy.md`).
 - **cluster-jwt** — the per-cluster kubectl JWT a sandbox's kubeconfig resolves
   to (`lnsc_` prefix, 15 min). The relay itself authenticates its tunnel with an
   `lnst_` token.
@@ -58,7 +60,8 @@ traffic) checks every CONNECT against the sandbox's network policy: a target the
 policy doesn't route `upstream` gets **403** and an audit failure (reason
 `policy`, or `policy-unavailable` when no policy resolved).
 `FORWARD_PROXY_POLICY_CHECK=audit` (env, not a chart value) lets those through,
-logged and marked on the audit entry; the default is `enforce`.
+logged and marked on the audit entry; the default is `enforce`. A change to a
+sandbox's policy reaches every replica at once, not after the periodic refresh.
 
 ## How sandboxes reach clusters
 Outbound traffic routes through a **cluster relay tunnel** for `clusterId`-tagged
