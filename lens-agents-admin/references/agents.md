@@ -42,7 +42,8 @@ Semantics that bite:
   `exposedPorts[0].url` is populated — that URL is the agent's chat UI.
   `completed` means the main command exited 0; a non-zero exit is `error` with
   `exitCode` set (exec still works in both until the sandbox stops). A finished
-  main command is **not run again** — not on a new runtime, not by auto-start.
+  main command is **not run again** — not on a new runtime, not by auto-start;
+  only an explicit start runs it again.
   `started` means the container runs, not that the agent answers yet: REST
   `GET /v1/projects/{projectId}/sandboxes/{sandboxId}/port-readiness` reports
   `answering`.
@@ -80,8 +81,8 @@ Semantics that bite:
   - `files: [{path, content}]` — written (0644, owned by the agent user) on
     **every start**, before the agent runs; the agent's edits are lost at the
     next start. ≤256 files, 128 KiB each, 1 MiB total; absolute paths without
-    `.`/`..`, each part ≤255 bytes, not under `/.lens`; secret-looking names
-    (`.env*`, `.npmrc`, `id_rsa`, `*.pem`, …) are refused.
+    `.`/`..`, each part ≤255 bytes, not under `/.lens` or `/.nexus-discovery`;
+    secret-looking names (`.env*`, `.npmrc`, `id_rsa`, `*.pem`, …) are refused.
   - `scripts: [{when:"pre-start", run, user?, description?}]` — run in order with
     `sh -e` after the files and the network policy, before the agent, on every
     start; one that fails stops the sandbox. ≤32, 128 KiB each, 512 KiB total.
@@ -108,7 +109,7 @@ Semantics that bite:
   keepalive every 15 s; a follow ends after 60 min. Project members only, never a
   sandbox token; **409** when there's no current runtime, and only the current
   runtime's logs exist. **No MCP tool** — CLI `nexusctl sandbox logs <sandbox>
-  --project <p> [-f] [--tail N]`, or the sandbox page's **Logs** tab.
+  --project <p> [-f] [--tail N]` (`N` 1–10000), or the sandbox page's **Logs** tab.
 - **Without a timer, a sandbox runs until stopped.** `stop_sandbox` for an
   immediate cutoff (e.g. after revoking access — revocation alone doesn't kill a
   running process).

@@ -194,7 +194,9 @@ the setup screen stay up).
    ```bash
    kubectl -n default get secret lens-agents-hub-setup -o jsonpath='{.data.setupCode}' | base64 -d
    ```
-   (`<release>-hub-setup`, key `setupCode`, format `xxxx-xxxx-xxxx-xxxx`; kept across upgrades.)
+   (`<fullname>-hub-setup` — `lens-agents-hub-setup` here — or `hub.setup.existingSecret`;
+   key `hub.setup.key`, default `setupCode`; the generated code is
+   `xxxx-xxxx-xxxx-xxxx` and is kept across upgrades.)
 2. Open `http://localhost:3002`. The **Connect to Lens Hub** screen asks for the
    **Setup code** → **Continue to Lens Hub**. A wrong code is refused after ~1 s
    (no lockout).

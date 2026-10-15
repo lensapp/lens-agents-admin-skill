@@ -192,9 +192,12 @@ at boot, so it must be real before the restart in step 5).
 ## 8. Let CI call the platform without a stored secret (workload identity)
 
 A CI job (or a Kubernetes pod) swaps its own OIDC token for a short-lived API
-token — nothing to store or rotate. All steps are **human OIDC** (org admin for
-the issuer, project admin for the token and rules) over REST, `nexusctl` or the
-web UI; there are **no MCP tools** for this. Details in `tenancy.md`.
+token — nothing to store or rotate. Setting it up (steps 1–3) takes a **human
+OIDC** session (org admin for the issuer, project admin for the token and rules)
+over REST, `nexusctl` or the web UI; there are **no MCP tools** for this. Sign the
+CLI in first: `nexusctl auth login --server <publicUrl>` (browser; saved under
+`~/.nexus/` — an exported `NEXUS_URL` overrides the saved server). `--org` / `--project` also read `NEXUS_ORG` / `NEXUS_PROJECT`.
+Details in `tenancy.md`.
 
 1. Trust the issuer (org admin): `nexusctl workload-identity issuer add --org <org> --preset github`
    (or `gitlab`, `buildkite`, `google-cloud`, `kubernetes` + `--issuer`). Note the
@@ -205,7 +208,10 @@ web UI; there are **no MCP tools** for this. Details in `tenancy.md`.
    Pin ids that can't be re-registered (`repository_id`, not the name), plus the branch or environment.
 4. In the job (`permissions: id-token: write`):
    `TOKEN=$(nexusctl workload-identity token --federated-token <id> --audience <org audience>)` with
-   `NEXUS_URL=<publicUrl>`, then call REST or `/mcp` with `Authorization: Bearer $TOKEN` (valid 1 h by default).
+   `NEXUS_URL=<publicUrl>` (the CLI adds `/v1`; the id can come from `NEXUS_FEDERATED_TOKEN`). This step needs
+   no `auth login` — the exchange is unauthenticated, and the token goes to stdout. Then call REST or `/mcp`
+   with `Authorization: Bearer $TOKEN` (valid 1 h by default). Elsewhere (e.g. a Kubernetes pod) pass
+   `--token-file <path>` instead of `--audience`.
 5. A refusal is always a plain 401 — find out why with `nexusctl workload-identity explain --project <p> --token-file <file>`
    or the project's **Federated Tokens → Explain a token**. Kill switch: `nexusctl federated-token delete ci --project <p>` (revokes it and its sessions).
 
