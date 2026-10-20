@@ -88,10 +88,27 @@ Semantics that bite:
     start; one that fails stops the sandbox. ≤32, 128 KiB each, 512 KiB total.
     **Not secret** — returned on reads (secrets go in as credentials). On
     Kubernetes an HTTP health check's `initialDelaySeconds` must outlast them.
+  - `tools: ["jq@1.7.1", "node@22.11.0"]` — installed with **mise** before the
+    agent starts, on every start, by an `install-tools` step that runs as root in
+    the image before the agent's container; their bin directories go **first on
+    `PATH`** for the agent, exec sessions and pre-start scripts. `name@version`
+    (a mise registry name, no backend prefix; the version may be `latest`), ≤32,
+    each name once; only the syntax is checked, so an unknown tool fails at start.
+    Prebuilt releases only — compiling is off and npm/cargo/pip-style backends are
+    disabled. Read-only to the agent: `npm install -g` into a declared node fails,
+    so install into the agent's home instead. A tool that can't be installed (3
+    tries) leaves the sandbox in `error` with `Tool install failed: …`; the logs
+    show `[tools n/N]` lines. A change is a new revision + restart, `[]` removes
+    them, a rollback restores them. Downloads **don't** go through the sandbox
+    policy (it isn't in force yet) but through the platform's **tools cache**
+    (`install-local.md`, Other values): while it's on but not ready the sandbox
+    doesn't start, and a tool from a host off its allow-list fails to install
+    (fail-closed).
   - With an image whose supervisor predates files/scripts the sandbox doesn't
     start (its supervisor is refused, "supervisor is too old"; the create/update
-    itself succeeds). `list_sandboxes` omits `files`/`scripts`; `get_sandbox` has
-    them. nexusctl sets files, scripts and `imageUpdate` only from a spec file (`-f`).
+    itself succeeds). `list_sandboxes` omits `files`/`scripts` (it does list
+    `tools`); `get_sandbox` has them. nexusctl sets files, scripts, `tools` and
+    `imageUpdate` only from a spec file (`-f`).
 - **Image updates:** `imageUpdate: {auto}` follows the image's tag (it must have
   one and not be pinned to a digest). `imageUpdateStatus` (`current`,
   `available`, `checkedAt`, `checkError`, `heldDigest`) reports a newer digest;
@@ -103,6 +120,15 @@ Semantics that bite:
   `digest` must equal `imageUpdateStatus.available` or it's 409; project admin.
   Revisions show `resolvedImage`; automatic ones are `createdBy: system`.
   Tuning is env only (`IMAGE_UPDATE_*`), not Helm.
+- **Icon (optional):** REST only, no MCP tool —
+  `GET`/`PUT`/`DELETE /v1/projects/{projectId}/sandboxes/{sandboxId}/icon`. `PUT`
+  takes the **raw image** as the body (PNG, JPEG, WebP, GIF or AVIF — not SVG;
+  ≤10 MiB, ≤50 megapixels); the platform centre-crops it to a square, scales it
+  to at most 1024 px and stores WebP (first frame only). Project ADMIN sets or
+  removes it; anyone with project access reads it. Metadata only: no revision, no
+  restart. Reads carry `iconHash`; `?v=<iconHash>` makes the answer cacheable. The
+  web UI edits it in the sandbox's settings; the Lens Agents client shows it as
+  the agent's icon.
 - **Logs:** REST `GET /v1/projects/{projectId}/sandboxes/{sandboxId}/logs`
   (`tailLines`, default 500, max 10000; `follow`) is a server-sent-events stream —
   `log` frames `{text}`, ending with `end {reason: eof|max-duration}` or `error`;

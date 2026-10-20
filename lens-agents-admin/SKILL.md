@@ -17,7 +17,7 @@ compatibility: >-
   Lens Agents platform MCP endpoint.
 metadata:
   version: "1.0"
-  platformRelease: "lens-agents-platform-v0.32.0"
+  platformRelease: "lens-agents-platform-v0.33.0"
 ---
 
 # Lens Agents — Platform Admin
@@ -132,11 +132,11 @@ enrolled with Lens Hub yet — see `references/install-local.md` Step 4.
 | Know the platform internals (MCP endpoints, principals, proxies, network) | `references/architecture.md` |
 | Write policies + bindings correctly | `references/policies.md` |
 | Set up managed inference / providers (incl. per-org inference keys) | `references/inference.md` |
-| Inject credentials; connect K8s/AWS/GitHub | `references/credentials.md`, `references/connections.md` |
+| Inject credentials (incl. GitHub App tokens the platform mints); connect K8s/AWS/GitHub | `references/credentials.md`, `references/connections.md` |
 | Wire upstream MCP servers | `references/mcp-connectors.md` |
 | Connect an agent to Slack (two tokens, Socket Mode) | `references/playbooks.md`, `references/agents.md` |
 | Launch **and configure** a managed (Prism) agent | `references/agents.md` |
-| Orgs / projects / project members / tokens (+ how a token gets project-admin, workload identity federation) | `references/tenancy.md` |
+| Orgs / projects / project members / invitations with project roles / tokens (+ how a token gets project-admin, workload identity federation) | `references/tenancy.md` |
 | Spending, usage, audit | `references/governance.md` |
 | Avoid the traps (fail-open/closed, thresholds, caps, reserved names) | `references/gotchas.md` |
 | Step-by-step recipes for the common jobs | `references/playbooks.md` |

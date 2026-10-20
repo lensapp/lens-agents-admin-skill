@@ -73,6 +73,13 @@ project) and `get_usage_cost_timeseries` (cost over time; with `groupBy`, each
 bucket also carries `groupTokens`, the total tokens per group — the org
 Overview's average cost-per-token chart).
 
+Where a backend reports no cost of its own, spend is priced from the platform's
+model price table. A model id that only resellers publish (`vendor/model`) is
+priced at the rate most of its resellers agree on, not one reseller's marked-up
+rate, so cost figures and limit counts for such ids can differ from earlier
+releases (e.g. `openai/gpt-5.6-sol-pro` had been priced at about 1.375× list).
+LiteLLM spend is unaffected: it uses only the cost LiteLLM reports.
+
 ## Audit trail
 
 Every governed action (REST, MCP tool call, proxy decision) is recorded.

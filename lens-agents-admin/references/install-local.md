@@ -192,11 +192,13 @@ the setup screen stay up).
 
 1. Read the setup code the chart generated (`helm install` prints this command too):
    ```bash
-   kubectl -n default get secret lens-agents-hub-setup -o jsonpath='{.data.setupCode}' | base64 -d
+   kubectl -n default get secret lens-agents-hub-setup -o jsonpath='{.data.setupCode}' | base64 -d; echo
    ```
    (`<fullname>-hub-setup` — `lens-agents-hub-setup` here — or `hub.setup.existingSecret`;
    key `hub.setup.key`, default `setupCode`; the generated code is
-   `xxxx-xxxx-xxxx-xxxx` and is kept across upgrades.)
+   `xxxx-xxxx-xxxx-xxxx` and is kept across upgrades. The printed command ends
+   in `; echo` (as above) so the code sits on its own line; a trailing `%` copied
+   from zsh's no-newline marker is accepted.)
 2. Open `http://localhost:3002`. The **Connect to Lens Hub** screen asks for the
    **Setup code** → **Continue to Lens Hub**. A wrong code is refused after ~1 s
    (no lockout).
@@ -349,3 +351,21 @@ startup, and a default above the ceiling won't start. `workloadIdentity.enabled`
 (default `true`) and `workloadIdentity.sessionTtlSeconds` (default `3600`) — see
 `tenancy.md`. Install the matching CLI with `curl -fsSL <publicUrl>/install.sh | sh`
 (`nexusctl`; refused over plain HTTP except on loopback).
+
+**Tools cache** (for sandbox `tools`, see `agents.md`):
+- `sandbox.toolsCache.enabled` (default `true`; `SANDBOX_TOOLS_CACHE` `auto`|`off`).
+  On first use the platform deploys a `nexus-tools-cache` Deployment, Service,
+  PVC and Secret into the sandbox namespace, from the agent-loader image (no extra
+  image to mirror). The chart's Role grants deployments, services and
+  secret `update` for it.
+- `sandbox.toolsCache.disk` (default `20Gi`) — the PVC size (storage class
+  `sandbox.k8s.agentVolumeStorageClass`). The PVC is created once, so raising the
+  value later means expanding the PVC yourself.
+- `sandbox.toolsCache.extraHosts` (default `[]`; `*.example.com` matches
+  subdomains) adds download hosts to the built-in allow-list (GitHub, nodejs.org,
+  go.dev, static.rust-lang.org, releases.hashicorp.com, get.helm.sh, dl.k8s.io and
+  similar).
+- **Fail-closed:** while the cache isn't ready, a sandbox with tools doesn't
+  start; disabled, each sandbox downloads its tools directly, from any host.
+  Sandboxes without `tools` are unaffected. Sandbox pods must reach the cache
+  Service (port 3128).

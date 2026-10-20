@@ -50,6 +50,13 @@ For a plain REST+OpenAPI upstream use `create_http_connector` instead.)*
 2. Reference it + allow the domain in the policy: `credentials:[{credentialName:"github-pat", envVarKey:"GITHUB_TOKEN"}]`, `allowedDomains:[{pattern:"api.github.com", verdict:"allow", transport:"upstream"}]`. *(policies.md)*
 3. Bind; the proxy injects the token — the agent never sees it.
 
+**Prefer a GitHub App over a PAT** where you can (short-lived tokens limited to
+chosen repositories and permissions): create it over REST
+`POST /v1/projects/{projectId}/credentials` with `jwtAssertion` instead of `value`
+(MCP `create_credential` can't), or embed it in `create_sandbox`/`update_sandbox`
+`credentials`. Leave `injections` empty to get the `api.github.com` + `github.com`
+defaults, then reference it and allow both domains in the policy as in step 2. *(credentials.md)*
+
 ## 5. Set budgets and watch spend
 
 1. As an **org admin**, set the ceilings first — they are the only limits a
