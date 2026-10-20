@@ -46,7 +46,9 @@ also required.
 `delete_project` and `delete_org` are refused with **409** while the project or
 org still has sandboxes ("…has N sandboxes. Delete them first.", or "…still being
 deleted. Try again shortly") — delete the sandboxes first. The web UI's org and
-project **Settings** pages rename and delete.
+project **Settings** pages rename and delete. The Lens Agents client API can
+also delete a workspace (org) or project — the same 409 while agents remain, and
+a person's own Personal workspace is refused (403).
 
 ## Project members
 
@@ -71,9 +73,29 @@ without a membership.
 
 ## Invitations
 
-`invite_org_member` — add someone to the org.
+`invite_org_member { orgId, email, role, projectAccess? }` — add someone to the
+org. `projectAccess` is `[{ projectId (uuid), role: "ADMIN"|"MEMBER" }]` (at most
+100, each project once) and is for **MEMBER** invitations only — `role: "ADMIN"`
+with projects is refused, since an org admin already reaches every project. On
+accept the person gets those project roles; a project deleted meanwhile is
+skipped, an existing project role is raised but never lowered, and an existing
+org member is upgraded to ADMIN but never downgraded.
+
+`update_org_invitation { orgId, invitationId, role?, projectAccess? }` (at least
+one; REST `PATCH /v1/orgs/{orgId}/invitations/{invitationId}`) changes a
+**pending** invitation. `projectAccess` replaces the whole set; changing `role` to
+ADMIN drops the project roles. An accepted or declined invitation gives **409**, a
+revoked or unknown one 404; invitations don't expire. Reads list `projectAccess`
+with project names.
+
+All invitation tools are **OIDC-only**; invite and update need an org admin and
+are refused from a sandbox session. nexusctl `invitation create` takes only
+`--email`/`--role` — use MCP, REST or the web UI's invite dialog to give project
+roles.
+
 `list_my_invitations`, `accept_invitation`, `decline_invitation` — these act on
-a human's own invitations, so they need that human's OIDC session.
+a human's own invitations, so they need that human's OIDC session. Answering one
+that's already accepted or declined gives 400.
 
 ## API tokens
 
