@@ -12,6 +12,7 @@ Know which way each guard fails before you rely on it:
 | Per-actor MCP tool resolution | **fail-CLOSED** | empty allow-map = deny-all (must not collapse to "no filter") |
 | Policy **resolve() error** | **fail-CLOSED** | deny-all fallback |
 | **Empty/absent** policy | egress-deny but **inference stays OFF** | not the same as a resolve error |
+| Tools cache (sandbox `tools`) | **fail-CLOSED** | cache not ready → a sandbox with tools doesn't start; a tool from a host off its allow-list fails to install, which stops the sandbox; `sandbox.toolsCache.enabled: false` downloads directly |
 
 ## Default thresholds (embed these — don't send the user to look them up)
 - Sandboxes have **no idle shutdown by default** — `autoStopMinutes` / `autoDeleteMinutes` are opt-in (see `agents.md`).
@@ -21,14 +22,17 @@ Know which way each guard fails before you rely on it:
 - **Daily session reset 4 AM** local; conversation compaction keeps the **recent 20** messages.
 - Memory retention: importance **<3 AND >30 days** deleted; ≥3 kept indefinitely; summary never auto-deleted.
 - Audit API: **max 200** entries/page (cursor pagination). Public exposed-port concurrency default **32**.
+- Sandbox `tools`: **3** install tries per tool; the tools cache keeps release files **30 days**.
+- Sandbox logs: tail **500** default, **10000** max; a follow ends after **60 min**. Workload-identity session: **1 h** default. Access webhooks: retried for **24 h**.
 - Crypto: ephemeral per-sandbox CA **ECDSA P-256** (in-memory only); credential storage **AES-256-GCM**; tokens stored as **SHA-256** (one-way, shown once).
 
 ## Naming & shape constraints
 - **Slug regex** `^[a-z0-9][a-z0-9-]*[a-z0-9]$` (lowercase alphanumeric + hyphens, no leading/trailing hyphen) for connection/resource/server names.
-- Sandbox: **at most four exposed ports and one persistent volume**. Exposed-port `auth`: `public` (openable without a session) vs `private` (the default; needs a platform sign-in with access to the project).
+- Sandbox: **at most four exposed ports and one persistent volume** (sizable at create with `volumes[].size`, up to the `SANDBOX_DISK` ceiling). Exposed-port `auth`: `public` (openable without a session) vs `private` (the default; needs a platform sign-in with access to the project).
+- Sandbox `tools`: **at most 32** `name@version` entries (mise names, no backend prefix). Sandbox icon: **≤10 MiB**, ≤50 megapixels, no SVG.
 - Sandbox images **must have `/bin/sh` and a writable CA bundle**; **`FROM scratch` and non-debug distroless are unsupported**.
 - Reserved connector name **`nexus-api`** (the platform's own system MCP row) — don't create/rename/delete it; `create_mcp_server` refuses to shadow it.
-- Sandbox workspace root is **`/home/sandbox`**.
+- A sandbox's working directory is its `workdir` if set, else `WORKSPACE_PATH` from env, else the image's WORKDIR.
 
 ## Behavior traps
 - **A sandbox on the project `/mcp` sees no admin tools** — by design (see `architecture.md`); that endpoint carries only the project's connectors. On the global `/mcp` a sandbox sees just three self-scoped spend/usage reads (`get_usage_cost_summary`, `get_usage_cost_timeseries`, `get_spending_limit_status`), which return only its own budget. Administer via the global `/mcp`.
@@ -44,6 +48,16 @@ Know which way each guard fails before you rely on it:
 - **Cluster RBAC bound to `<org>/<team>` groups no longer matches** — those groups are gone; rebind to `<org>/<project>` (see `connections.md`).
 - **Bedrock with no Bedrock token, org Bedrock key, or detectable AWS credentials isn't offered** — a policy naming it fails every call (see `inference.md`).
 - **A forward-proxy CONNECT outside the sandbox policy gets 403** (see `architecture.md`).
+- **Nothing works until the install enrolls with Lens Hub** — REST and `/mcp` answer `503 fleet_enrollment_required` (see `install-local.md` Step 4).
+- **A valid Lens ID token can still get 401** — the client gate refuses tokens from clients that aren't the install's own or in `oidc.delegatedClients` (see `rbac.md`).
+- **Sandbox `files` are rewritten on every start** (agent edits are lost), and **`scripts` are returned on reads** — never put secrets in either; use credentials.
+- **MCP `create_credential` can't make a GitHub App credential** (it needs a `value`) — use REST or the web UI, or embed it in `create_sandbox`/`update_sandbox`. A GitHub App credential can't be rotated in place; delete and recreate it (see `credentials.md`).
+- **Declared `tools` are read-only** — `npm install -g` / `pip install` into a declared tool's prefix fails, and the error doesn't mention tools (see `agents.md`).
+- **`volumes` (incl. its size) is create-only** — `update_sandbox` can't change it.
+- **`update_sandbox_image` takes only the exact `imageUpdateStatus.available` digest** — anything else is 409; re-read the sandbox.
+- **Project and org delete are refused (409) while sandboxes exist** — delete the sandboxes first.
+- **Workload-identity claim rules are exact match** — no globs; a refused exchange is always a bare 401, so use explain (see `tenancy.md`).
+- **`/health` reports the platform `version`** — the quickest way to tell which release you're on.
 - **Managed inference is opt-in** — an empty policy egress-denies but leaves inference OFF; the agent won't answer until a policy enables it.
 - Provider must match across **install + policy + sandbox `LLM_PROVIDER`** or the agent won't answer — and **an unrecognized `LLM_PROVIDER` doesn't throw, it silently falls back to `bedrock`**, so a typo presents as a mismatch, not a config error (see `agents.md`). "Install" here means the backend is served *and* has a key — the deployment's, or the org's own inference key (see `inference.md`).
 

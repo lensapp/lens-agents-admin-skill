@@ -26,6 +26,19 @@ token issued to another client gets **401**; a person without the role gets
 **403**. `oidc.directAccessReportOnly: true` only logs refusals. So a `403` on
 `/mcp` for an otherwise valid account usually means a missing realm role.
 
+**Client gate (on by default for Lens ID).** Even with no role set,
+`oidc.clientGate=auto` (the default) checks the token's client whenever the install
+signs in through the Lens ID client Lens Hub provisioned for it: only access
+tokens issued to that client or to one in `oidc.delegatedClients` pass, anything
+else gets **401** — no role is needed. `oidc.clientGate=never` turns it off. So a
+`401` (not `403`) on an otherwise valid Lens ID token usually means a client that
+isn't delegated. See `install-local.md` (Production readiness).
+
+**Workload identity** is human-only on both tiers: a **human org admin** manages
+the org's trusted issuers, a **human project admin** the project's federated
+tokens and their rules — an API token or an exchanged session can't. See
+`tenancy.md`.
+
 ## Project admin — an API token with the project-ADMIN role
 
 **Spending limits are the exception to everything below.** Changing one takes a
@@ -94,8 +107,9 @@ them to the web UI to make it. Org creation is only out of reach for an
 
 - **Personal invitations** — `list_my_invitations` / `accept_invitation` /
   `decline_invitation` act on a specific human's own invitations, so they need
-  that person's session no matter how you're authed. (You *can* still
-  `invite_org_member`.)
+  that person's session no matter how you're authed. (As an org admin you *can*
+  still `invite_org_member` — optionally with project roles — and
+  `update_org_invitation` a pending one; see `tenancy.md`.)
 
 If you hit one of these, ask the user to do it from their own signed-in session;
 everything else — org creation included, on OIDC — do yourself.

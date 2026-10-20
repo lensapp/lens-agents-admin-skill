@@ -8,8 +8,8 @@ For exact tool params, read `tools/list` / the OpenAPI spec — these show the
 
 ## 0. No platform yet? Install it first
 
-If nothing is running, follow `install-local.md` (minikube → Helm → activate →
-connect to the global `/mcp`), then continue with playbook 1 below.
+If nothing is running, follow `install-local.md` (minikube → Helm → enroll with
+Lens Hub → connect to the global `/mcp`), then continue with playbook 1 below.
 
 ## 1. Onboard the platform from zero → a running agent
 
@@ -17,8 +17,8 @@ connect to the global `/mcp`), then continue with playbook 1 below.
 2. `create_project { orgId, name: "demo", displayName: "Demo" }` → note `projectId`. *(tenancy.md)*
 3. `create_policy { projectId, name: "starter", managedInference: { enabled: true, provider: "<installed-provider>" } }` → note `policyId`. *(policies.md — set the provider the platform was installed with: bedrock | azure | bedrock-mantle | openai | openrouter | litellm. **Don't copy `bedrock` blindly** — a policy still accepts it and Prism's `LLM_PROVIDER` defaults to it, but it works only with a Bedrock token, an org Bedrock key, or AWS credentials the platform found at boot; otherwise all three places "match", the stack comes up clean, and every call fails. `list_inference_providers { orgId }` shows which backends this org can actually use and whose key each runs on.)*
 4. `create_policy_binding { projectId, name: "starter-sandboxes", policyIds: ["<policyId>"], subjects: [{ kind: "all_sandboxes" }] }`. *(policies.md)*
-5. `create_sandbox { projectId, name: "prism-demo", image: "ghcr.io/lensapp/prism-agent:latest", command: "exec ./start.sh", cpu: "500m", memory: "2Gi", env: {...}, volumes: [{mountPath:"/data"}], exposedPorts: [{name:"chat",port:3003,auth:"public"}], policyIds: ["<policyId>"] }`. *(agents.md — `cpu`/`memory` required, ≤ the SANDBOX_CPU/SANDBOX_MEMORY ceiling)*
-6. Poll `get_sandbox` until `state=started` and `exposedPorts[0].url` is set.
+5. `create_sandbox { projectId, name: "prism-demo", image: "ghcr.io/lensapp/prism-agent:latest", command: "exec ./start.sh", cpu: "500m", memory: "2Gi", env: {...}, volumes: [{mountPath:"/data"}], exposedPorts: [{name:"chat",port:3003,auth:"public"}], imageUpdate: {auto:true}, policyIds: ["<policyId>"] }`. *(agents.md — `cpu`/`memory` required, ≤ the SANDBOX_CPU/SANDBOX_MEMORY ceiling)*
+6. Poll `get_sandbox` until `state=started` and `exposedPorts[0].url` is set (`error` or `completed` means it stopped on its own — see `agents.md`).
 7. **Wrap up — always end an install/onboard with a plain-language summary.** Tell the user:
    - **What you installed:** the Lens Agents platform + a running **Prism** agent (its first managed agent).
    - **How to reach each, and what each is for:** the **Lens Agents web UI** (the `config.publicUrl`, e.g. `http://localhost:3002`) to *govern the platform* — projects, policies, agents, audit — vs. the **Prism chat UI** (`exposedPorts[0].url`) to *talk to the agent*. Name this platform-vs-agent distinction explicitly; it's the #1 point of confusion.
@@ -49,6 +49,13 @@ For a plain REST+OpenAPI upstream use `create_http_connector` instead.)*
 1. `create_credential { projectId, name: "github-pat", value, injections: [{ domain:"api.github.com", headerName:"Authorization", headerFormat:"token {value}" }] }`. *(credentials.md)*
 2. Reference it + allow the domain in the policy: `credentials:[{credentialName:"github-pat", envVarKey:"GITHUB_TOKEN"}]`, `allowedDomains:[{pattern:"api.github.com", verdict:"allow", transport:"upstream"}]`. *(policies.md)*
 3. Bind; the proxy injects the token — the agent never sees it.
+
+**Prefer a GitHub App over a PAT** where you can (short-lived tokens limited to
+chosen repositories and permissions): create it over REST
+`POST /v1/projects/{projectId}/credentials` with `jwtAssertion` instead of `value`
+(MCP `create_credential` can't), or embed it in `create_sandbox`/`update_sandbox`
+`credentials`. Leave `injections` empty to get the `api.github.com` + `github.com`
+defaults, then reference it and allow both domains in the policy as in step 2. *(credentials.md)*
 
 ## 5. Set budgets and watch spend
 
@@ -109,7 +116,7 @@ tokens + set project members (OIDC org-admin). Ask **which project(s)** Odin man
    The connector grant's **`credentialId`** is what makes those first-party tools
    run as the token's principal. Only **api-token-visible** tools exist in the
    `nexus-api` catalog, so those are the only names `allowedTools` can usefully list. *(policies.md)*
-6. `create_sandbox { projectId:<home>, name:"odin", image:"ghcr.io/lensapp/prism-agent:latest", command:"exec ./start.sh", cpu:"500m", memory:"2Gi", env:{ LLM_PROVIDER:"..." }, volumes:[{mountPath:"/data"}], exposedPorts:[{name:"web",port:3003,auth:"private"}], policyIds:["<homePolicyId>"] }`; poll `get_sandbox` for the chat URL. Attaching the policy **to the sandbox** here scopes admin to *this* sandbox — don't bind it `all_sandboxes` or you elevate every sandbox in the project. Prefer `auth:"private"` (requires a platform session to reach the chat) for a project-admin agent; `"public"` only for a throwaway trial. *(agents.md — `cpu`/`memory` required)*
+6. `create_sandbox { projectId:<home>, name:"odin", image:"ghcr.io/lensapp/prism-agent:latest", command:"exec ./start.sh", cpu:"500m", memory:"2Gi", env:{ LLM_PROVIDER:"..." }, volumes:[{mountPath:"/data"}], exposedPorts:[{name:"web",port:3003,auth:"private"}], imageUpdate:{auto:true}, policyIds:["<homePolicyId>"] }`; poll `get_sandbox` for the chat URL. Attaching the policy **to the sandbox** here scopes admin to *this* sandbox — don't bind it `all_sandboxes` or you elevate every sandbox in the project. Prefer `auth:"private"` (requires a platform session to reach the chat) for a project-admin agent; `"public"` only for a throwaway trial. *(agents.md — `cpu`/`memory` required)*
 7. Seed the admin skill so Odin knows it's an admin — no platform tool writes into
    Odin's container, so you can't write its `/data` from here. Instead **ask Odin over its chat to install the skill itself**,
    giving it the repo link `https://github.com/lensapp/lens-agents-admin-skill`.
@@ -188,6 +195,32 @@ at boot, so it must be real before the restart in step 5).
 > Don't set `SLACK_SKIP_BOT_ID_CHECK` — it's an e2e-test flag that makes the agent
 > process other bots' messages. If an **org ceiling** is set (playbook 6), make sure
 > `slack.com`/`*.slack.com` are in its allowlist, or Slack egress gets clipped.
+
+## 8. Let CI call the platform without a stored secret (workload identity)
+
+A CI job (or a Kubernetes pod) swaps its own OIDC token for a short-lived API
+token — nothing to store or rotate. Setting it up (steps 1–3) takes a **human
+OIDC** session (org admin for the issuer, project admin for the token and rules)
+over REST, `nexusctl` or the web UI; there are **no MCP tools** for this. Sign the
+CLI in first: `nexusctl auth login --server <publicUrl>` (browser; saved under
+`~/.nexus/` — an exported `NEXUS_URL` overrides the saved server). `--org` / `--project` also read `NEXUS_ORG` / `NEXUS_PROJECT`.
+Details in `tenancy.md`.
+
+1. Trust the issuer (org admin): `nexusctl workload-identity issuer add --org <org> --preset github`
+   (or `gitlab`, `buildkite`, `google-cloud`, `kubernetes` + `--issuer`). Note the
+   org audience `issuer list` prints.
+2. Create the federated token (project admin): `nexusctl federated-token create --project <p> --name ci --role MEMBER`
+   → note its id (not a secret). Prefer `MEMBER` unless the job must write.
+3. Pin who may act as it: `nexusctl federated-token rule add ci --project <p> --issuer https://token.actions.githubusercontent.com --claim repository_id=<id> --claim repository_owner_id=<id> --claim ref=refs/heads/main`.
+   Pin ids that can't be re-registered (`repository_id`, not the name), plus the branch or environment.
+4. In the job (`permissions: id-token: write`):
+   `TOKEN=$(nexusctl workload-identity token --federated-token <id> --audience <org audience>)` with
+   `NEXUS_URL=<publicUrl>` (the CLI adds `/v1`; the id can come from `NEXUS_FEDERATED_TOKEN`). This step needs
+   no `auth login` — the exchange is unauthenticated, and the token goes to stdout. Then call REST or `/mcp`
+   with `Authorization: Bearer $TOKEN` (valid 1 h by default). Elsewhere (e.g. a Kubernetes pod) pass
+   `--token-file <path>` instead of `--audience`.
+5. A refusal is always a plain 401 — find out why with `nexusctl workload-identity explain --project <p> --token-file <file>`
+   or the project's **Federated Tokens → Explain a token**. Kill switch: `nexusctl federated-token delete ci --project <p>` (revokes it and its sessions).
 
 ## After any change
 

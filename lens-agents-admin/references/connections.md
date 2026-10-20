@@ -143,6 +143,8 @@ Grant access via an aws-connection integration (naming the connection) in the
 agent's policy.
 
 > GitHub: there is **no** GitHub-connection tool on the current MCP surface.
-> Give an agent GitHub access with a **credential** (`credentials.md`, a PAT
-> injected as `Authorization: token {value}` on `api.github.com`) plus the
-> matching `allowedDomains` entry in its policy.
+> Give an agent GitHub access with a **credential** (`credentials.md`): a PAT
+> injected as `Authorization: token {value}` on `api.github.com`, or better a
+> **GitHub App** credential, whose installation tokens (limited to chosen
+> repositories and permissions) the platform mints and renews. Add the matching
+> `allowedDomains` entries to its policy.

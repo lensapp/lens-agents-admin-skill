@@ -47,6 +47,11 @@ Non-obvious semantics, by field:
   **`allowedTools: []` means deny all tools in that ref, not allow all** —
   list names to whitelist exactly those. The field is called `connectors`
   over MCP; REST also accepts a legacy `mcpServers` alias for the same thing.
+- **Agents asking for websites:** a client-API agent can call
+  `request_website_access` (1–4 exact public host names + a reason). It does
+  **not** change any policy — it shows the person a card, and what gets allowed
+  is what that person picks from the hosts the platform recorded as blocked
+  (rate limit `bff.clientMcp.websiteRequestsPerHour`, default 10 per agent per replica).
 - `update_policy` accepts the same shape, all fields optional. Passing
   `managedInference: null` or `piiMasking: null` is how you *disable* a
   previously-set block — omitting the field just leaves it unchanged.
