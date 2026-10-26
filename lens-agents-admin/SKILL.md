@@ -17,7 +17,7 @@ compatibility: >-
   Lens Agents platform MCP endpoint.
 metadata:
   version: "1.0"
-  platformRelease: "lens-agents-platform-v0.33.0"
+  platformRelease: "lens-agents-platform-v0.34.0"
 ---
 
 # Lens Agents — Platform Admin

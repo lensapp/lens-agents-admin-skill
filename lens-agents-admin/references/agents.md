@@ -25,19 +25,40 @@ Semantics that bite:
   On a `public` port the caller's own `Authorization` header reaches the app (e.g.
   a bot's JWT); on `private` ports it is stripped.
 - **Volume size:** `volumes[].size` (a whole-number quantity, e.g. `"20Gi"`) sets
-  the PVC request — **at create only** (`volumes` isn't updatable). Above the
-  platform's `SANDBOX_DISK` ceiling → 400 `disk X exceeds the maximum allowed (Y)`;
-  omitted = the default size (`SANDBOX_K8S_AGENT_VOLUME_SIZE`, `10Gi`). An
-  unknown key in a volume entry → 400. Local Docker ignores it; an existing PVC
-  is never resized (a smaller one only logs a warning). CLI: `--volume PATH[:SIZE]`.
+  the PVC request. Above the platform's `SANDBOX_DISK` ceiling → 400 `disk X
+  exceeds the maximum allowed (Y)`; omitted = the default size
+  (`SANDBOX_K8S_AGENT_VOLUME_SIZE`, `10Gi`). An unknown key in a volume entry → 400.
+  **`update_sandbox` can grow it:** send the same entry (same `mountPath`) with a
+  larger `size`. It grows in place, with no new revision and no restart, and can
+  take a few minutes to show inside the sandbox. A smaller size, a different
+  `mountPath`, adding or removing the volume, a size over the ceiling, or a growth
+  while the sandbox is in a transient state → 400. Grow the volume and change
+  `credentials` in **separate** updates (both in one → 400). On Kubernetes the
+  StorageClass must allow expansion (`allowVolumeExpansion`); if Kubernetes
+  refuses (or the PVC isn't bound yet), the update is 400 with its reason and
+  nothing in it is applied (a platform Role without PVC `patch` is a 500, not a
+  400). Local Docker accepts the size and ignores it. CLI:
+  `--volume PATH[:SIZE]` on create; to grow, `nexusctl sandbox update -f` with a
+  `volumes` block (`update` has no `--volume` flag).
 - **`cpu` and `memory` are required** (K8s quantities, e.g. `cpu: "500m"`,
   `memory: "2Gi"` / `"512Mi"`) and must **not exceed** the platform's
   `SANDBOX_CPU` / `SANDBOX_MEMORY` ceilings (Helm chart default `500m` / `2Gi`,
   set by `sandbox.k8s.cpu` / `sandbox.k8s.memory`). `update_sandbox`
   can change them — a different value creates a new revision and restarts the
   sandbox (the same value doesn't).
-- Image must have `/bin/sh` + a writable CA bundle; `FROM scratch` / non-debug
-  distroless are **unsupported** (see `gotchas.md`).
+  These are **limits**. On Kubernetes a pod reserves `limit × ratio`:
+  `sandbox.k8s.cpuRequestRatio` / `sandbox.k8s.memoryRequestRatio`
+  (`SANDBOX_K8S_CPU_REQUEST_RATIO` / `SANDBOX_K8S_MEMORY_REQUEST_RATIO`), in (0, 1]
+  with up to six decimals, default `1` (reserve the whole limit). Below 1 the pod
+  bursts to its limit when the node has room. CPU is only throttled, but a pod
+  over its memory reservation is evicted first, which stops the sandbox — lower
+  memory with care. A change applies to pods created later. Local Docker applies
+  `cpu`/`memory` as hard caps.
+- Image must have `/bin/sh` and a writable `/etc/ssl/certs`; `FROM scratch` /
+  non-debug distroless are **unsupported** (see `gotchas.md`). An image with no CA
+  bundle (e.g. stock `ubuntu:24.04`) starts: the supervisor copies the platform's
+  roots into place first. If it can't and the image has no roots anywhere, the
+  sandbox stops with an error instead of retrying for ever.
 - After create, **poll `get_sandbox`** until `state` is `started` and
   `exposedPorts[0].url` is populated — that URL is the agent's chat UI.
   `completed` means the main command exited 0; a non-zero exit is `error` with
@@ -56,7 +77,8 @@ Semantics that bite:
 - **Lifecycle timers** — all off unless set; metadata-only (no restart); `null`
   clears:
   - `autoStopMinutes` (1–43200, i.e. up to 30 days): stop after that long with no
-    activity — an open exec/terminal session or a request to a **private** port.
+    activity — an open exec, terminal or port-forward session (SSH included) or a
+    request to a **private** port.
     Egress and public-port traffic don't count.
   - `autoDeleteMinutes` (0–43200): delete the sandbox **and its volume** that long
     after it was asked to stop (`0` = as soon as it has stopped). A sandbox in
@@ -136,6 +158,23 @@ Semantics that bite:
   sandbox token; **409** when there's no current runtime, and only the current
   runtime's logs exist. **No MCP tool** — CLI `nexusctl sandbox logs <sandbox>
   --project <p> [-f] [--tail N]` (`N` 1–10000), or the sandbox page's **Logs** tab.
+- **Port forward and SSH (CLI only, project ADMIN, no MCP tool):**
+  `nexusctl sandbox port-forward <sandbox> LOCAL:REMOTE` (or one number for
+  both) listens on `127.0.0.1` and reaches **any** port on the sandbox's
+  loopback, exposed or not. A closed port → 502. Each forward is audited as
+  `sandbox.port-forward`; `--stdio` carries one connection for an OpenSSH
+  `ProxyCommand`. The sandbox's egress policy doesn't apply to it.
+  **Plain OpenSSH** (`ssh`, `scp`, `sftp`, VS Code Remote-SSH) needs no sshd in
+  the image: `nexusctl sandbox ssh-config --project <org>/<project>` prints one
+  `~/.ssh/config` entry, `Host *.<project>.<org>.nexus` (`--org <org>` →
+  `*.<org>.nexus`, every project of the org), which runs `nexusctl sandbox
+  ssh-proxy` as the `ProxyCommand`. Each shell, command or `sftp` session is one
+  exec (audited as `sandbox.exec` **with its command line**, so keep secrets out
+  of it); `sftp` needs `sftp-server` in the image. `-L`/`-W` forwards go only to
+  the sandbox loopback. A session stops when more than 256 MiB of input waits.
+  Host keys are per-connection and the entry turns host-key checks off; trust
+  comes from the platform token and TLS. Entries an older nexusctl wrote
+  (`<sandbox>.<project>.nexus`) still work.
 - **Without a timer, a sandbox runs until stopped.** `stop_sandbox` for an
   immediate cutoff (e.g. after revoking access — revocation alone doesn't kill a
   running process).

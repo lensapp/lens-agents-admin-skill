@@ -203,7 +203,7 @@ token — nothing to store or rotate. Setting it up (steps 1–3) takes a **huma
 OIDC** session (org admin for the issuer, project admin for the token and rules)
 over REST, `nexusctl` or the web UI; there are **no MCP tools** for this. Sign the
 CLI in first: `nexusctl auth login --server <publicUrl>` (browser; saved under
-`~/.nexus/` — an exported `NEXUS_URL` overrides the saved server). `--org` / `--project` also read `NEXUS_ORG` / `NEXUS_PROJECT`.
+`~/.nexus/` — an exported `NEXUS_URL` overrides the saved server). `--org` / `--project` also read `NEXUS_ORG` / `NEXUS_PROJECT`, or a saved context (`nexusctl use <org>/<project>`, see `tenancy.md`).
 Details in `tenancy.md`.
 
 1. Trust the issuer (org admin): `nexusctl workload-identity issuer add --org <org> --preset github`

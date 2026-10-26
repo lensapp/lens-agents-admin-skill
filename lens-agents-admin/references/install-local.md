@@ -199,8 +199,8 @@ the setup screen stay up).
    `xxxx-xxxx-xxxx-xxxx` and is kept across upgrades. The printed command ends
    in `; echo` (as above) so the code sits on its own line; a trailing `%` copied
    from zsh's no-newline marker is accepted.)
-2. Open `http://localhost:3002`. The **Connect to Lens Hub** screen asks for the
-   **Setup code** → **Continue to Lens Hub**. A wrong code is refused after ~1 s
+2. Open `http://localhost:3002`. The **Connect to LNS Hub** screen asks for the
+   **Setup code** → **Continue to LNS Hub**. A wrong code is refused after ~1 s
    (no lockout).
 3. In Lens Hub, sign in with Lens ID and pick the owner and a fleet name. Lens Hub
    registers and enrolls the fleet and sends the browser back to the platform.
@@ -347,8 +347,10 @@ must repeat the top-level `hub.url`/`hub.fleetId`).
 **Other values.** `sandbox.k8s.disk` (`SANDBOX_DISK`) caps a sandbox's volume
 size; empty falls back to `sandbox.k8s.agentVolumeSize`
 (`SANDBOX_K8S_AGENT_VOLUME_SIZE`, the default size), else `10Gi` — checked at
-startup, and a default above the ceiling won't start. `workloadIdentity.enabled`
-(default `true`) and `workloadIdentity.sessionTtlSeconds` (default `3600`) — see
+startup, and a default above the ceiling won't start.
+`sandbox.k8s.cpuRequestRatio` / `sandbox.k8s.memoryRequestRatio` (default `"1"`)
+set the share of each sandbox limit its pod reserves (see `agents.md`).
+`workloadIdentity.enabled` (default `true`) and `workloadIdentity.sessionTtlSeconds` (default `3600`) — see
 `tenancy.md`. Install the matching CLI with `curl -fsSL <publicUrl>/install.sh | sh`
 (`nexusctl`; refused over plain HTTP except on loopback).
 

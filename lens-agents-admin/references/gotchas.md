@@ -28,9 +28,9 @@ Know which way each guard fails before you rely on it:
 
 ## Naming & shape constraints
 - **Slug regex** `^[a-z0-9][a-z0-9-]*[a-z0-9]$` (lowercase alphanumeric + hyphens, no leading/trailing hyphen) for connection/resource/server names.
-- Sandbox: **at most four exposed ports and one persistent volume** (sizable at create with `volumes[].size`, up to the `SANDBOX_DISK` ceiling). Exposed-port `auth`: `public` (openable without a session) vs `private` (the default; needs a platform sign-in with access to the project).
+- Sandbox: **at most four exposed ports and one persistent volume** (sized with `volumes[].size` up to the `SANDBOX_DISK` ceiling; an update can grow it, never shrink it). Exposed-port `auth`: `public` (openable without a session) vs `private` (the default; needs a platform sign-in with access to the project).
 - Sandbox `tools`: **at most 32** `name@version` entries (mise names, no backend prefix). Sandbox icon: **≤10 MiB**, ≤50 megapixels, no SVG.
-- Sandbox images **must have `/bin/sh` and a writable CA bundle**; **`FROM scratch` and non-debug distroless are unsupported**.
+- Sandbox images **must have `/bin/sh`** and a writable `/etc/ssl/certs` (a missing CA bundle is filled in); **`FROM scratch` and non-debug distroless are unsupported**.
 - Reserved connector name **`nexus-api`** (the platform's own system MCP row) — don't create/rename/delete it; `create_mcp_server` refuses to shadow it.
 - A sandbox's working directory is its `workdir` if set, else `WORKSPACE_PATH` from env, else the image's WORKDIR.
 
@@ -53,7 +53,8 @@ Know which way each guard fails before you rely on it:
 - **Sandbox `files` are rewritten on every start** (agent edits are lost), and **`scripts` are returned on reads** — never put secrets in either; use credentials.
 - **MCP `create_credential` can't make a GitHub App credential** (it needs a `value`) — use REST or the web UI, or embed it in `create_sandbox`/`update_sandbox`. A GitHub App credential can't be rotated in place; delete and recreate it (see `credentials.md`).
 - **Declared `tools` are read-only** — `npm install -g` / `pip install` into a declared tool's prefix fails, and the error doesn't mention tools (see `agents.md`).
-- **`volumes` (incl. its size) is create-only** — `update_sandbox` can't change it.
+- **A volume can grow but never shrink, move or be added/removed** — `update_sandbox` with a larger `volumes[].size` grows it without a restart (needs `allowVolumeExpansion` on Kubernetes); do it in a separate update from a `credentials` change (see `agents.md`).
+- **nexusctl `sandbox set-limit` / `sandbox spend` no longer take `--org`** (0.34) — the org comes from the project; scripts passing `--org` fail to parse. A project name in more than one org must be written `<org>/<project>`. `nexusctl cluster` / `aws-connection` moved to `nexusctl integration kubernetes` / `aws` (see `tenancy.md`).
 - **`update_sandbox_image` takes only the exact `imageUpdateStatus.available` digest** — anything else is 409; re-read the sandbox.
 - **Project and org delete are refused (409) while sandboxes exist** — delete the sandboxes first.
 - **Workload-identity claim rules are exact match** — no globs; a refused exchange is always a bare 401, so use explain (see `tenancy.md`).
