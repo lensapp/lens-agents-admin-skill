@@ -82,9 +82,10 @@ choice.
 
 ## Sandbox runtime shape
 A supervisor (PID 1) + static `nft` are side-loaded into `/.lens/`; the user
-image doesn't need the nftables package but **must have `/bin/sh`** and a
-**writable CA bundle** (`/etc/ssl/certs/ca-certificates.crt`) so the boundary CA
-can be appended. **`FROM scratch` and non-debug distroless images are
+image doesn't need the nftables package but **must have `/bin/sh`**. The
+boundary CA is appended to `/etc/ssl/certs/ca-certificates.crt`, so that path must
+be writable; an image with no bundle gets the platform's roots copied there first.
+**`FROM scratch` and non-debug distroless images are
 unsupported** (no shell). K8s provisioner can set a `RuntimeClass` (`kata-clh`,
 `gvisor`) for microVM isolation. **Caps: at most four exposed ports and one
 persistent volume per sandbox.**

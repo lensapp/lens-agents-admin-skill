@@ -21,6 +21,9 @@ any API response, so it's spelled out below.
 
 Tools: `list_clusters`, `get_cluster`, `create_cluster`, `update_cluster`,
 `delete_cluster`, `rotate_cluster_tunnel_token`.
+CLI: `nexusctl integration kubernetes list|get|create|update|delete|rotate-tunnel-token`
+(alias `k8s`; `nexusctl cluster` before 0.34). In the web UI, Kubernetes and AWS
+sit under the project's **Integrations** sidebar group.
 
 ### Connect a cluster (tunnel mode — the default)
 
@@ -138,6 +141,8 @@ ever reach it, only the platform holds them.
 
 Tools: `list_aws_connections`, `get_aws_connection`, `create_aws_connection`,
 `update_aws_connection`, `delete_aws_connection`.
+CLI: `nexusctl integration aws list|get|create|update|delete` (`nexusctl
+aws-connection` before 0.34).
 
 Grant access via an aws-connection integration (naming the connection) in the
 agent's policy.

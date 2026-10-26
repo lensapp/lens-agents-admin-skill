@@ -10,6 +10,11 @@ heartbeats skip gracefully instead of erroring.
 
 Tools: `list_spending_limits`, `get_spending_limit_status`,
 `set_spending_limit`, `remove_spending_limit`.
+CLI: `nexusctl spending-limit set --org <org> --actor-type … --period day|week|month
+--limit-cents N`; per sandbox, `nexusctl sandbox set-limit <sandbox> --period …
+--limit-cents N` and `nexusctl sandbox spend <sandbox>`. **Since 0.34 those two
+take no `--org`**: the org comes from `--project` (or `<org>/<project>/<sandbox>`,
+or the context, see `tenancy.md`).
 
 **Visibility:** the three *read* tools — `get_usage_cost_summary`,
 `get_usage_cost_timeseries`, `get_spending_limit_status` — are visible to `oidc`,
@@ -74,11 +79,15 @@ bucket also carries `groupTokens`, the total tokens per group — the org
 Overview's average cost-per-token chart).
 
 Where a backend reports no cost of its own, spend is priced from the platform's
-model price table. A model id that only resellers publish (`vendor/model`) is
-priced at the rate most of its resellers agree on, not one reseller's marked-up
-rate, so cost figures and limit counts for such ids can differ from earlier
-releases (e.g. `openai/gpt-5.6-sol-pro` had been priced at about 1.375× list).
-LiteLLM spend is unaffected: it uses only the cost LiteLLM reports.
+model price table. A model id is priced at the rate most of the providers listing
+it agree on, not at one reseller's rate. Since 0.34 this also covers bare ids (no
+`vendor/` prefix), e.g. a dated Claude id served through an OpenAI-compatible
+gateway, which had been priced at about a seventh of list with cache tokens at
+nothing. Rates that differ only by float noise count as one, and a listing whose
+every rate is 0 is skipped, so a paid model is no longer metered as free (ids
+named free, such as `:free`, keep their 0). Cost figures and limit counts can
+therefore differ from earlier releases, mostly upwards. LiteLLM spend is
+unaffected: it uses only the cost LiteLLM reports.
 
 ## Audit trail
 

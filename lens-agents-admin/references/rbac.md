@@ -70,6 +70,10 @@ Project-member changes are also refused from any **sandbox session**
 (`access-denied`) — including a user-issued sandbox token that replays an org
 admin's OIDC context — the same rule as spending-limit mutations.
 
+Sandbox Edit, Start, Stop, Delete and Terminal are project-ADMIN actions (the
+API always refused them for a MEMBER). The web UI now shows them disabled for a
+project MEMBER, with the reason. Port forward and SSH also need project ADMIN.
+
 ## Sandbox principals are MEMBER — until you give them a project-admin token via `nexus-api`
 
 A managed agent on its **default sandbox identity** is capped at project

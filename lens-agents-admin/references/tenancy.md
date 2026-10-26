@@ -174,3 +174,31 @@ short-lived API-token session, so there's no stored secret. **No MCP tools**: RE
 - CLI: `nexusctl workload-identity issuer list|add|remove`,
   `nexusctl federated-token list|create|delete`,
   `nexusctl federated-token rule list|add|remove`.
+
+## nexusctl context, servers and lookups
+
+- **Context:** `nexusctl use <org>[/<project>]` saves the org/project that
+  commands use when they name none; `nexusctl context` shows it and its source,
+  `nexusctl context list` the ones you can use. First set wins: `--project`/`--org`
+  → `NEXUS_PROJECT`/`NEXUS_ORG` → `NEXUS_CONTEXT` → the nearest `.nexus.toml`
+  (`context = "acme/default"`) → the saved context (`~/.nexus/context.json`). A
+  typed `--project`/`--org` beats the *other* one's env var. nexusctl writes a
+  context-filled value and its source to stderr.
+- **Project names are unique only per org.** `--project` takes `<org>/<project>`;
+  a bare name that matches more than one project stops with the choices instead
+  of picking one (before 0.34 it silently took the first match).
+- **Sandboxes across projects:** a sandbox argument can be `<project>/<sandbox>` or
+  `<org>/<project>/<sandbox>` (wins over `--project`). With no project from any
+  source, nexusctl searches every project you can see, and stops if the name is
+  in more than one. `nexusctl sandbox list` with no project lists every visible
+  project; `--org <org>` lists one org; `-A`/`--all` lists everything, even when a
+  context is set.
+- **More than one server:** `nexusctl auth login --server <url>` keeps the other
+  logins (`~/.nexus/credentials.json`), and each server has its own context.
+  `nexusctl use @<host>` (or `<org>/<project>@<host>`) switches servers;
+  `nexusctl auth status` lists the others; `nexusctl auth logout` logs out of the
+  current one, `--all` out of every one. `--server`/`NEXUS_URL` still win.
+- **Integrations moved (0.34):** `nexusctl cluster …` → `nexusctl integration
+  kubernetes …` (alias `k8s`), `nexusctl aws-connection …` → `nexusctl integration
+  aws …`; `nexusctl integration list` shows both, and `-o name` prints
+  `integration/<type>/<name>`. Names are looked up only in the current project.
