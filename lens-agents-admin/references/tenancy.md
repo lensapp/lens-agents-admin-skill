@@ -46,9 +46,7 @@ also required.
 `delete_project` and `delete_org` are refused with **409** while the project or
 org still has sandboxes ("…has N sandboxes. Delete them first.", or "…still being
 deleted. Try again shortly") — delete the sandboxes first. The web UI's org and
-project **Settings** pages rename and delete. The Lens Agents client API can
-also delete a workspace (org) or project — the same 409 while agents remain, and
-a person's own Personal workspace is refused (403).
+project **Settings** pages rename and delete.
 
 ## Project members
 
