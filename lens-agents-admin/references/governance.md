@@ -11,10 +11,29 @@ heartbeats skip gracefully instead of erroring.
 Tools: `list_spending_limits`, `get_spending_limit_status`,
 `set_spending_limit`, `remove_spending_limit`.
 CLI: `nexusctl spending-limit set --org <org> --actor-type … --period day|week|month
---limit-cents N`; per sandbox, `nexusctl sandbox set-limit <sandbox> --period …
---limit-cents N` and `nexusctl sandbox spend <sandbox>`. **Since 0.34 those two
+--limit-cents N [--anchor 2026-10-30T14:00:00Z]`; per sandbox, `nexusctl sandbox
+set-limit <sandbox> --period … --limit-cents N` and `nexusctl sandbox spend <sandbox>`. **Since 0.34 those two
 take no `--org`**: the org comes from `--project` (or `<org>/<project>/<sandbox>`,
 or the context, see `tenancy.md`).
+
+**Period anchor.** A limit can renew from a chosen moment instead of the
+calendar (`set_spending_limit` `periodAnchor`, nexusctl `--anchor`): a whole UTC
+hour, in 1970 or later. Day and week periods are 24 h / 7 d steps from it; a
+month keeps the anchor's day and time, clamped to the month's length (Jan 31 →
+Feb 28/29 → Mar 31). Omitted or `null`, periods are calendar periods in UTC —
+and **omitting it on an anchored limit clears the anchor**. A new, changed or
+cleared anchor starts a new window with spend counted from zero; changing only
+the amount keeps the window and its spend. Limits and status items carry
+`periodAnchor` and `periodEnd` (a 429's `Retry-After` uses it); nexusctl shows a
+RESETS column (`-o wide` on `list` adds ANCHOR). `nexusctl sandbox set-limit`
+keeps an existing cap's anchor. In the web UI it is **Renews → From a date**.
+
+**Threshold events.** An **org-level** limit (not a project, sandbox, token or
+user one) announces `spending_limit.threshold` through the event webhooks when
+spend reaches **80 %** and **100 %** — once per period and limit value, and only
+the highest threshold crossed (a jump past 100 % sends `100` alone). A new period
+or a changed limit can announce again; a crossing in the last minute or two of a
+period can be missed. Setup and payload: `install-local.md` (Event webhooks).
 
 **Visibility:** the three *read* tools — `get_usage_cost_summary`,
 `get_usage_cost_timeseries`, `get_spending_limit_status` — are visible to `oidc`,
@@ -88,6 +107,9 @@ every rate is 0 is skipped, so a paid model is no longer metered as free (ids
 named free, such as `:free`, keep their 0). Cost figures and limit counts can
 therefore differ from earlier releases, mostly upwards. LiteLLM spend is
 unaffected: it uses only the cost LiteLLM reports.
+One-hour prompt-cache writes are priced at **2× the input rate**; five-minute
+writes keep the model's cache-write rate. Rows with a provider-reported cost are
+not repriced.
 
 ## Audit trail
 

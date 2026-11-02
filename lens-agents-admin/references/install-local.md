@@ -306,14 +306,7 @@ This trial is deliberately minimal: container isolation, port-forward access, a
 bundled DB, a single install-time inference credential. Production adds microVM
 sandbox isolation (Kata/gVisor runtime classes), real ingress + TLS, a managed
 database, RBAC, and hardened credential management — a guided-evaluation
-engagement, not self-serve. The chart can also deploy the Lens Agents client API
-as a subchart (`bff.enabled`, off by default; the default
-`bff.nexusAuth: exchange` requires `bff.tokenExchange.clientId` and
-`bff.tokenExchange.existingSecret`, and while the client gate is on — the default
-on Lens ID, see below — that clientId must also be in `oidc.delegatedClients`.
-`forward` is refused while `oidc.directAccessRole` is set; with the client gate on
-it needs `bff.oidc.allowedAzp`, each of those clients delegated. Or set
-`oidc.clientGate=never`. The install fails otherwise).
+engagement, not self-serve.
 
 **Client gate (on by default for Lens ID).** `oidc.clientGate`
 (`OIDC_CLIENT_GATE`): `auto` (default) | `always` | `never` — any other value
@@ -331,18 +324,28 @@ redirect_uri`. Behind an ingress, keep its header limit at least
 `config.maxHeaderBytes` (default `32768`). `sandboxIngress.corsOrigins` lists
 origins a web UI may call private sandbox ports from.
 
-**Access webhooks.** `accessWebhooks.urls` (`ACCESS_WEBHOOK_URLS`) plus
-`accessWebhooks.secret` or `existingSecret` (≥32 bytes; URLs `https`, or `http`
-to in-cluster or loopback hosts) and `timeoutMs` (default `5000`, max `30000`).
-When a **person** loses project access (removed from a project or the org,
-demoted from org admin, project or org deleted — a role change that keeps access
-sends nothing), the platform POSTs `access.revoked`
-`{id, type, occurredAt, userSub, projectIds}`, signed
+**Event webhooks.** `eventWebhooks.urls` (`EVENT_WEBHOOK_URLS`; each `https`, or
+`http` to an in-cluster host — a single-label name, `*.svc`,
+`*.svc.cluster.local` — or loopback; no URL twice) plus `eventWebhooks.secret`
+(≥32 bytes, kept in the Secret `<release>-event-webhooks`) or `existingSecret`
+with `existingSecretKey` (default `EVENT_WEBHOOK_SECRET`), and `timeoutMs`
+(default `5000`, max `30000`). `urls` without a secret fails the chart; empty
+`urls` turns the feature off. **Every receiver gets every event type** — answer
+`2xx` to a type you don't handle. The body is `{id, type, occurredAt, …}` (the
+type is only in the body). Types:
+- `access.revoked` `{userSub, projectIds}` (at most 1000 ids per event) when a
+  **person** loses project access (removed from a project or the org, demoted
+  from org admin, project or org deleted — a role change that keeps access, and
+  API tokens, send nothing).
+- `spending_limit.threshold` `{orgId, limitId, period, threshold, limitCents,
+  spendCents, periodStart, periodEnd}` when an **org-level** limit reaches **80**
+  or **100** % (see `governance.md`).
+
+Each delivery is signed
 `X-Lens-Agents-Signature: t=<unix>,v1=<hex HMAC-SHA256 of "<t>.<body>">` with
-`X-Lens-Agents-Event-Id`. Delivery is at least once, retried with backoff for
-24 h; `400`/`410`/`413`/`422` drop the event. The client API consumes it for its
-push notifications (`bff.push.*`, off by default, iOS through Lens Hub; `bff.hub`
-must repeat the top-level `hub.url`/`hub.fleetId`).
+`X-Lens-Agents-Event-Id`; refuse a `t` more than 5 min off your clock. Delivery is
+at least once (deduplicate on `id`), retried with backoff from 10 s up to 10 min
+for 24 h, redirects not followed; `400`/`410`/`413`/`422` drop the event.
 
 **Other values.** `sandbox.k8s.disk` (`SANDBOX_DISK`) caps a sandbox's volume
 size; empty falls back to `sandbox.k8s.agentVolumeSize`
@@ -351,7 +354,14 @@ startup, and a default above the ceiling won't start.
 `sandbox.k8s.cpuRequestRatio` / `sandbox.k8s.memoryRequestRatio` (default `"1"`)
 set the share of each sandbox limit its pod reserves (see `agents.md`).
 `workloadIdentity.enabled` (default `true`) and `workloadIdentity.sessionTtlSeconds` (default `3600`) — see
-`tenancy.md`. Install the matching CLI with `curl -fsSL <publicUrl>/install.sh | sh`
+`tenancy.md`. `oidc.serviceClients` (`OIDC_SERVICE_CLIENTS`, default `[]`) names
+clients whose client-credentials token is the **installation service account**;
+`oidc.sandboxIngressClients` (client → realm role) and
+`oidc.sandboxIngressClientsWithoutRole` (a list) let other clients' tokens open
+private sandbox ports — a null role or an empty list item fails the chart (both in
+`rbac.md`). `SANDBOX_INGRESS_WEBHOOK_MAX_BODY_BYTES` (env, not a chart value,
+default 1 MiB) caps a webhook port's body (see `agents.md`). Install the matching
+CLI with `curl -fsSL <publicUrl>/install.sh | sh`
 (`nexusctl`; refused over plain HTTP except on loopback).
 
 **Tools cache** (for sandbox `tools`, see `agents.md`):

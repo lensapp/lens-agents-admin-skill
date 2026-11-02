@@ -23,19 +23,20 @@ Know which way each guard fails before you rely on it:
 - Memory retention: importance **<3 AND >30 days** deleted; ≥3 kept indefinitely; summary never auto-deleted.
 - Audit API: **max 200** entries/page (cursor pagination). Public exposed-port concurrency default **32**.
 - Sandbox `tools`: **3** install tries per tool; the tools cache keeps release files **30 days**.
-- Sandbox logs: tail **500** default, **10000** max; a follow ends after **60 min**. Workload-identity session: **1 h** default. Access webhooks: retried for **24 h**.
+- Sandbox logs: tail **500** default, **10000** max; a follow ends after **60 min**. Workload-identity session: **1 h** default. Event webhooks: retried for **24 h**; spend thresholds announced at **80 / 100 %** (org-level limits only).
+- Webhook-port body cap **1 MiB** (HMAC ports). `schedule_wake`: at most **30 days** ahead, started about **2 min** early.
 - Crypto: ephemeral per-sandbox CA **ECDSA P-256** (in-memory only); credential storage **AES-256-GCM**; tokens stored as **SHA-256** (one-way, shown once).
 
 ## Naming & shape constraints
 - **Slug regex** `^[a-z0-9][a-z0-9-]*[a-z0-9]$` (lowercase alphanumeric + hyphens, no leading/trailing hyphen) for connection/resource/server names.
-- Sandbox: **at most four exposed ports and one persistent volume** (sized with `volumes[].size` up to the `SANDBOX_DISK` ceiling; an update can grow it, never shrink it). Exposed-port `auth`: `public` (openable without a session) vs `private` (the default; needs a platform sign-in with access to the project).
+- Sandbox: **at most four exposed ports and one persistent volume** (sized with `volumes[].size` up to the `SANDBOX_DISK` ceiling; an update can grow it, never shrink it). Exposed-port `auth`: `public` (openable without a session) vs `private` (the default; needs a platform sign-in with access to the project) vs `webhook` (a sender that proves a shared secret).
 - Sandbox `tools`: **at most 32** `name@version` entries (mise names, no backend prefix). Sandbox icon: **≤10 MiB**, ≤50 megapixels, no SVG.
 - Sandbox images **must have `/bin/sh`** and a writable `/etc/ssl/certs` (a missing CA bundle is filled in); **`FROM scratch` and non-debug distroless are unsupported**.
 - Reserved connector name **`nexus-api`** (the platform's own system MCP row) — don't create/rename/delete it; `create_mcp_server` refuses to shadow it.
 - A sandbox's working directory is its `workdir` if set, else `WORKSPACE_PATH` from env, else the image's WORKDIR.
 
 ## Behavior traps
-- **A sandbox on the project `/mcp` sees no admin tools** — by design (see `architecture.md`); that endpoint carries only the project's connectors. On the global `/mcp` a sandbox sees just three self-scoped spend/usage reads (`get_usage_cost_summary`, `get_usage_cost_timeseries`, `get_spending_limit_status`), which return only its own budget. Administer via the global `/mcp`.
+- **A sandbox on the project `/mcp` sees no admin tools** — by design (see `architecture.md`); that endpoint carries only the project's connectors (plus the sandbox's own `schedule_wake`). On the global `/mcp` a sandbox sees just three self-scoped spend/usage reads (`get_usage_cost_summary`, `get_usage_cost_timeseries`, `get_spending_limit_status`), which return only its own budget. Administer via the global `/mcp`.
 - **`allowedTools: []` on a connector ref = deny all**, not allow all.
 - **`piiMasking.failOpen: false` = fail-closed** (blocks) — the flag name inverts easily.
 - **Realtime voice is served UNMASKED** — a policy carrying `piiMasking` is simply not applied to an OpenAI realtime session; the only trace is `piiMaskingSkipped` on the audit records. Set masking, enable voice, and the audio leg is unmasked while the HTTP leg fails closed (see `inference.md`).
@@ -44,7 +45,10 @@ Know which way each guard fails before you rely on it:
 - **Revocation doesn't stop a running sandbox** — a revoked API token is refused on its next request, but the sandbox keeps running (nothing stops it unless an auto-stop timer is set); stop it for immediate cutoff.
 - **No platform tool reaches inside another agent's container.** So you can't seed a skill into another agent's `/data` or drive its runtime over MCP. To seed/drive a managed agent, go through *its own* chat UI / WS (e.g. ask it to install the skill from its repo link), or pre-seed the `/data` volume at create time.
 - **A Slack bot-token credential only allows the methods you whitelist — and the adapter's set ≠ the agent's set.** The Bolt adapter calls a fixed handful (auth.test, chat.postMessage/update, conversations.info/replies, reactions.add, users.info, files.*). If the *agent itself* calls other Slack methods — e.g. it enumerates channels/DMs via `conversations.list` / `users.conversations` — those must be in the credential's injection rules too, or the proxy 403s them. Easy to miss precisely because the adapter never calls them, so a "working" Slack connection still fails the agent's own API use (see `playbooks.md` playbook 7).
-- **Auto-stop ignores egress and public-port traffic.** A Slack- or heartbeat-driven agent, or a chat UI on a `public` port, can be stopped mid-work — and, if `autoDeleteMinutes` is set, auto-delete then removes its `/data` volume.
+- **Auto-stop ignores egress (except model calls through the platform's LLM proxy) and public- and webhook-port traffic.** A Slack-, webhook- or heartbeat-driven agent, or a chat UI on a `public` port, can be stopped mid-work — for scheduled work turn on `autoStart` and have the agent call `schedule_wake`; and, if `autoDeleteMinutes` is set, auto-delete then removes its `/data` volume.
+- **Every event-webhook receiver gets every event type** — one that answers a non-2xx other than `400`/`410`/`413`/`422` (which drop it at once) to a type it doesn't handle (e.g. `spending_limit.threshold`) gets it retried for 24 h, then dropped (see `install-local.md`).
+- **A webhook port's secret is write-only and not part of the spec** — a clone or a re-applied export must send it again; rotate it with `nexusctl sandbox webhook-secret` (no restart) (see `agents.md`).
+- **`nexusctl spending-limit set` without `--anchor` clears an existing period anchor** (so does MCP `set_spending_limit` without `periodAnchor`); `nexusctl sandbox set-limit` keeps it (see `governance.md`).
 - **Cluster RBAC bound to `<org>/<team>` groups no longer matches** — those groups are gone; rebind to `<org>/<project>` (see `connections.md`).
 - **Bedrock with no Bedrock token, org Bedrock key, or detectable AWS credentials isn't offered** — a policy naming it fails every call (see `inference.md`).
 - **A forward-proxy CONNECT outside the sandbox policy gets 403** (see `architecture.md`).

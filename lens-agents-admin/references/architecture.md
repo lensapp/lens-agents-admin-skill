@@ -5,7 +5,9 @@
   sandboxes, connectors, credentials, spending, audit) **plus** the
   org-scoped upstream connector aggregator. **This is where you administer.**
 - **Project-scoped `/projects/:projectId/mcp`** — **only** that project's
-  upstream MCP connectors. **No first-party/admin tools at all.** Sandboxes are wired to
+  upstream MCP connectors. **No admin tools** — the one first-party tool there is
+  `schedule_wake`, offered only to a sandbox of that project and acting only on
+  itself (see `agents.md`). Sandboxes are wired to
   this endpoint on purpose: a managed agent can reach its project's tool surface
   **without being able to drive its own sandbox over MCP** (prevents
   self-administration loops). A sandbox token that tries another
@@ -32,7 +34,8 @@ sandbox-token → api-token → OIDC).
   **never** org-admin. On the global `/mcp` the only first-party tools visible to
   it are **three self-scoped spend/usage reads** — `get_usage_cost_summary`,
   `get_usage_cost_timeseries`, `get_spending_limit_status` — which return only its
-  own budget's data; every spending-limit *mutation* stays OIDC-only.
+  own budget's data; every spending-limit *mutation* stays OIDC-only. On its
+  project `/mcp` it also gets `schedule_wake`, which sets its own wake.
 
 **Sandbox-as-principal (the current model):** policies attach **directly to a
 sandbox** (`create_sandbox` takes `policyIds: [...]` — live references to shared
