@@ -10,7 +10,8 @@ image.
 ## Launch — `create_sandbox` and lifecycle
 Tools: `list_sandboxes`, `get_sandbox`, `create_sandbox`, `update_sandbox`,
 `start_sandbox`, `stop_sandbox`, `restart_sandbox`, `delete_sandbox`, `list_sandbox_revisions`,
-`rollback_sandbox`, `update_sandbox_image`, `get_sandbox_effective_policy`.
+`rollback_sandbox`, `update_sandbox_image`, `get_sandbox_effective_policy`; and
+`schedule_wake`, which only a sandbox calls, on itself (see Lifecycle timers).
 
 Semantics that bite:
 - **Policies attach to the sandbox itself** (`policyIds: [...]` — the field was
@@ -21,9 +22,39 @@ Semantics that bite:
   own embedded `policy` and `credentials`, created in the same call.
 - **Caps: up to four exposed ports, one persistent volume.** `exposedPorts[].auth`:
   `public` = openable without a platform session (handy for a trial chat UI);
-  `private` (the default) = requires a platform sign-in with access to the project.
+  `private` (the default) = requires a platform sign-in with access to the project;
+  `webhook` = admits only a sender that proves a shared secret (next bullet).
   On a `public` port the caller's own `Authorization` header reaches the app (e.g.
-  a bot's JWT); on `private` ports it is stripped.
+  a bot's JWT); on `private` ports it is stripped. On a `private` port an
+  **API-token** caller is named to the app in `x-forwarded-token-id` (the token id,
+  as in the audit log; for a workload-identity session, its federated token's id);
+  a copy a caller sends is stripped on every port.
+- **Webhook ports:** `auth: "webhook"` requires a `webhook` block (and no other
+  auth takes one): `scheme` `token` (the header equals the secret, after an
+  optional literal `prefix`) or `hmac` (an HMAC of the raw body, plus `signedUrl`
+  when set; `algorithm` `sha256` (default) | `sha1` | `sha512`, `encoding` `hex`
+  (default) | `base64`; several comma-separated signatures may come, one must
+  match), `header`, `prefix`, and `secret` (1–1024 chars, **write-only** — reads
+  show `secretSet`). There are no vendor presets and no timestamp or replay check:
+  e.g. GitHub = `hmac`, `X-Hub-Signature-256`, prefix `sha256=`; GitLab = `token`,
+  `X-Gitlab-Token`. Every refusal is the same `401` (audited with `webhookAuth:
+  invalid|misconfigured`); `HEAD` answers 200 without being forwarded; no
+  WebSockets. The app gets `x-nexus-webhook-verified: 1`, and a token header is
+  removed. An HMAC body over `SANDBOX_INGRESS_WEBHOOK_MAX_BODY_BYTES` (default
+  1 MiB) → 413; concurrency shares the public-port cap (32, then 503). Like a public
+  port it is not activity and does not auto-start the sandbox. A new webhook port
+  needs its secret in the same create/update (omitted later = the stored one is
+  kept). Rotate it without a restart: REST `PUT
+  /v1/projects/{projectId}/sandboxes/{sandboxId}/exposed-ports/{portName}/webhook-secret`
+  `{secret}` (project ADMIN, 204) — there is no MCP rotate tool. A removed port's
+  secret is dropped once the revision without it is active; a clone, or a retry of
+  a rollout that failed and rolled back, must send it again. A sender that needs
+  an unsigned GET challenge still needs a `public` port. CLI: `--port
+  name=hooks,port=9000,auth=webhook,scheme=hmac,header=X-Hub-Signature-256,prefix=sha256=`
+  (also `algorithm=`, `encoding=`, `signed-url=`; values can't contain `,`) with
+  `--webhook-secret-file hooks=PATH` (`-` = stdin) on `create`/`update`; rotate
+  with `nexusctl sandbox webhook-secret <sandbox> <port> [--from-file PATH]`
+  (stdin otherwise). The web UI's sandbox dialog edits the verification settings.
 - **Volume size:** `volumes[].size` (a whole-number quantity, e.g. `"20Gi"`) sets
   the PVC request. Above the platform's `SANDBOX_DISK` ceiling → 400 `disk X
   exceeds the maximum allowed (Y)`; omitted = the default size
@@ -64,7 +95,8 @@ Semantics that bite:
   `completed` means the main command exited 0; a non-zero exit is `error` with
   `exitCode` set (exec still works in both until the sandbox stops). A finished
   main command is **not run again** — not on a new runtime, not by auto-start;
-  only an explicit start runs it again.
+  only an explicit start, or a due `schedule_wake` with `autoStart` on, runs it
+  again.
   `started` means the container runs, not that the agent answers yet: REST
   `GET /v1/projects/{projectId}/sandboxes/{sandboxId}/port-readiness` reports
   `answering`.
@@ -77,18 +109,29 @@ Semantics that bite:
 - **Lifecycle timers** — all off unless set; metadata-only (no restart); `null`
   clears:
   - `autoStopMinutes` (1–43200, i.e. up to 30 days): stop after that long with no
-    activity — an open exec, terminal or port-forward session (SSH included) or a
-    request to a **private** port.
-    Egress and public-port traffic don't count.
+    activity — an open exec, terminal or port-forward session (SSH included), a
+    request to a **private** port, or a **model call through the platform's LLM
+    proxy** (a POST, while its answer streams, or an open realtime session).
+    Other egress, and public- and webhook-port traffic, don't count.
   - `autoDeleteMinutes` (0–43200): delete the sandbox **and its volume** that long
     after it was asked to stop (`0` = as soon as it has stopped). A sandbox in
     `error` is never deleted.
   - `autoStart`: an exec, terminal or private-port request to an auto-stopped
     sandbox starts it again and waits for it (60 s by default). A sandbox a person
     stopped stays stopped.
-  - Reads show `lastActivityAt`, `stoppedAt`, `autoStopAt`, `autoDeleteAt`. Timers
-    are swept once a minute; each stop/delete writes a `sandbox.auto_stop` /
-    `sandbox.auto_delete` audit event.
+  - `schedule_wake { at }` (RFC 3339 with an offset, or `null` to clear): the
+    **sandbox itself** (a sandbox principal, on its project `/mcp`) sets one wake
+    for a scheduled task; the owner sets or clears it with `update_sandbox
+    { wakeAt }`. Needs `autoStart`, at most 30 days ahead and not after the
+    sandbox's projected auto-delete; kept to the minute. If the sandbox is stopped
+    by then, the sweep starts it about 2 min early (`SANDBOX_WAKE_LEAD_MS`) and its
+    main command runs again; an auto-stop due shortly before a wake is held.
+    Turning `autoStart` off, or a person's stop, clears it. Audited as
+    `sandbox.schedule_wake`; the start is `sandbox.auto_start` with `trigger:
+    wake`. No nexusctl flag.
+  - Reads show `lastActivityAt`, `stoppedAt`, `autoStopAt`, `autoDeleteAt`,
+    `wakeAt`. Timers are swept once a minute; each stop/delete writes a
+    `sandbox.auto_stop` / `sandbox.auto_delete` audit event.
   - CLI: `nexusctl sandbox create|update --auto-stop 30m --auto-delete 1d
     --auto-start` (`update` also takes `--clear-auto-stop`, `--clear-auto-delete`,
     `--clear-auto-start`; durations are `m`/`h`/`d`, or `0`); `nexusctl sandbox

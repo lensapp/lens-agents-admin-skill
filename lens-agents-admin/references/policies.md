@@ -47,11 +47,6 @@ Non-obvious semantics, by field:
   **`allowedTools: []` means deny all tools in that ref, not allow all** —
   list names to whitelist exactly those. The field is called `connectors`
   over MCP; REST also accepts a legacy `mcpServers` alias for the same thing.
-- **Agents asking for websites:** a client-API agent can call
-  `request_website_access` (1–4 exact public host names + a reason). It does
-  **not** change any policy — it shows the person a card, and what gets allowed
-  is what that person picks from the hosts the platform recorded as blocked
-  (rate limit `bff.clientMcp.websiteRequestsPerHour`, default 10 per agent per replica).
 - `update_policy` accepts the same shape, all fields optional. Passing
   `managedInference: null` or `piiMasking: null` is how you *disable* a
   previously-set block — omitting the field just leaves it unchanged.
@@ -94,6 +89,12 @@ Clipping is restriction-only and happens **at resolve time**, not at save:
   inference is **AND-gated** (the sandbox keeps it only if the ceiling also grants
   it); if the ceiling lists connectors, connectors it doesn't list are **dropped**.
   A credential aimed at a forbidden domain is neutralized because its domain is clipped.
+- **Path rules are clipped the way the sandbox proxy matches them:** `*` is one
+  path segment, `**` any number, `foo*` is literal. A grant path that the ceiling's
+  pattern contains is kept as asked (a ceiling `POST /*/*/git-upload-pack` keeps
+  `/lensapp/lens.git/git-upload-pack` and `/lensapp/*/git-upload-pack`); a grant
+  wider than the ceiling narrows to the ceiling's path; anything else is dropped.
+  `/api/*` does not contain `/api/v1/keys`.
 - **Per-axis carve-out:** a ceiling only caps an axis it actually populates. A
   ceiling that lists *no* connectors leaves the connector axis **uncapped** (so a
   domains-only ceiling doesn't silently strip every sandbox's connectors); likewise

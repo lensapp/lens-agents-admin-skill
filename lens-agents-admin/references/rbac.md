@@ -23,7 +23,9 @@ access tokens issued to this install's own client, and the person must hold that
 realm role (in `realm_access.roles`), be a named installation owner with a
 verified email, or come through a client listed in `oidc.delegatedClients`. A
 token issued to another client gets **401**; a person without the role gets
-**403**. `oidc.directAccessReportOnly: true` only logs refusals. So a `403` on
+**403**. `oidc.directAccessReportOnly: true` only logs refusals (the
+no-membership refusal of a role-less ingress client, below, is enforced even
+then). So a `403` on
 `/mcp` for an otherwise valid account usually means a missing realm role.
 
 **Client gate (on by default for Lens ID).** Even with no role set,
@@ -33,6 +35,26 @@ tokens issued to that client or to one in `oidc.delegatedClients` pass, anything
 else gets **401** — no role is needed. `oidc.clientGate=never` turns it off. So a
 `401` (not `403`) on an otherwise valid Lens ID token usually means a client that
 isn't delegated. See `install-local.md` (Production readiness).
+
+**Sandbox ingress clients.** `oidc.sandboxIngressClients` maps a client to the
+realm role its tokens need to open a sandbox's **private** port (instead of
+`oidc.directAccessRole`); `oidc.sandboxIngressClientsWithoutRole` lists clients
+that need **no role**, because they decide themselves who may use them. Their
+tokens are still refused on the API. Without a role, only **org members** get in
+(an invitation or the right to create orgs doesn't count — **403**), and the
+sandbox's project access still applies.
+
+**Installation service account.** A client listed in `oidc.serviceClients` is,
+through its **client-credentials** token only (`client_id` equal to `azp`, never
+the install's own sign-in client), **org admin in every org** — orgs created later
+too — and project ADMIN everywhere, with no membership row: members, API tokens,
+spending limits included. It is for a backend that acts when nobody is signed in,
+and works with the gates above on or off. It can't use managed inference or
+realtime, mint sandbox tokens, or open a private port; the audit trail names it in
+`metadata.serviceClient`. The platform won't start if the client is also the
+sign-in client, a delegated client or a sandbox-ingress client. Use a dedicated
+client (service accounts on, every other flow off); to revoke, remove it from the
+list or disable it in the IdP — tokens already issued last until they expire.
 
 **Workload identity** is human-only on both tiers: a **human org admin** manages
 the org's trusted issuers, a **human project admin** the project's federated
