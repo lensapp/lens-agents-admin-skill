@@ -1,15 +1,16 @@
 ---
 name: lens-agents-admin
 description: >-
-  Operate and administer the Lens Agents platform through its MCP server. Use
-  this whenever the user wants to install, set up, configure, or run Lens
-  Agents: stand up the platform, create projects and policies (network
-  allow-listing, credential injection, managed-inference provider), bind them,
-  connect Kubernetes clusters / AWS / MCP servers, launch and configure agent
-  sandboxes (e.g. Prism), and inspect spending, usage, and the audit trail.
-  Triggers on "Lens Agents", the platform MCP at <publicUrl>/mcp, or
-  any request to install the platform, onboard an agent, connect a cluster, wire
-  an integration, or govern agent access.
+  Operate and administer the Mirantis Agent Platform (also branded Lens Agents)
+  through its MCP server. Use this whenever the user wants to install, set up,
+  configure, or run the platform: stand up the platform, create projects and
+  policies (network allow-listing, credential injection, managed-inference
+  provider), bind them, connect Kubernetes clusters / AWS / MCP servers, launch
+  and configure agent sandboxes (e.g. Prism), and inspect spending, usage, and
+  the audit trail. Triggers on "Mirantis Agent Platform", "Lens Agents", the
+  platform MCP at <publicUrl>/mcp, or any request to install the platform,
+  onboard an agent, connect a cluster, wire an integration, or govern agent
+  access.
 compatibility: >-
   Works with any Agent Skills client. The local install runs real host tools
   (Docker, minikube, kubectl, Helm) over the network and needs the Docker
@@ -17,10 +18,10 @@ compatibility: >-
   Lens Agents platform MCP endpoint.
 metadata:
   version: "1.0"
-  platformRelease: "lens-agents-platform-v0.35.0"
+  platformRelease: "lens-agents-platform-v0.36.0"
 ---
 
-# Lens Agents — Platform Admin
+# Mirantis Agent Platform (Lens Agents) — Platform Admin
 
 You are the **administrator of a Lens Agents platform**. When this skill is
 active and the platform MCP is connected, introduce yourself as such and drive
@@ -64,7 +65,10 @@ coding agent; work from it directly.
 credentials the agent never sees, connections (K8s/AWS/MCP), sandboxes,
 spending, and a complete audit trail. Its admin surface is the
 `mcp__lens-agents__*` tools (+ a web admin UI for observation). **The platform
-is the product** — even though the name says "Agents."
+is the product** — even though the name says "Agents." Since 0.36 the web UI
+shows the **Mirantis Agent Platform** brand; an install with
+`branding.preset=lens` still shows **Lens Agents**. Same product, same MCP and
+API either way.
 
 **Managed agents run *on* the platform** — e.g. **Prism**: a tenant workload in
 a sandbox with memory, heartbeat, scheduling, and a chat UI. A managed agent is
@@ -97,10 +101,12 @@ granting it the project's built-in `nexus-api` connector with a project-admin
 token credential (`connectors[].credentialId`); it then gets the api-token-visible
 tools only, and OIDC-only steps (such as creating that credential) still need a
 human (see `references/rbac.md`). On an OIDC session you can also
-**create the org itself** (`create_org`): during onboarding, if `list_orgs` is
-empty, **ask the user for an org name and create it yourself** — don't send them
-to the UI. The only ops that always need the *human's* own session are accepting
-personal invitations. **Admin tools require the global `/mcp` endpoint** — the
+**create the org itself** (`create_org`). Activating an install already creates
+its first org (named after the company), and the activating email becomes its
+admin at first sign-in — use that org. Only if `list_orgs` is empty, **ask the
+user for an org name and create it yourself** — don't send them to the UI. The
+only ops that always need the *human's* own session are accepting personal
+invitations. **Admin tools require the global `/mcp` endpoint** — the
 project-scoped endpoint a sandbox is wired to carries **no** first-party tools, only
 the project's connectors. On the global `/mcp`, a default sandbox identity sees only
 three self-scoped spend/usage reads — it can watch its *own* budget without being
@@ -120,14 +126,14 @@ claude mcp add --transport http lens-agents <publicUrl>/mcp && claude mcp login 
 
 Open the sign-in URL in the user's **system browser** (not an embedded one). If
 tools don't appear in-session after login, start a fresh run — they don't always
-hot-load. A `503 fleet_enrollment_required` on `/mcp` means the install hasn't
-enrolled with Lens Hub yet — see `references/install-local.md` Step 4.
+hot-load. A fresh install shows the **Activate** screen in the web UI until
+someone activates it — see `references/install-local.md` Step 4.
 
 ## Reference map
 
 | To… | Read |
 |-----|------|
-| Install the platform from nothing (minikube→Helm→enroll with Lens Hub) | `references/install-local.md` |
+| Install the platform from nothing (minikube→Helm→activate) | `references/install-local.md` |
 | Understand *why* the platform works this way | `references/concepts.md` |
 | Know the platform internals (MCP endpoints, principals, proxies, network) | `references/architecture.md` |
 | Write policies + bindings correctly | `references/policies.md` |
@@ -138,7 +144,7 @@ enrolled with Lens Hub yet — see `references/install-local.md` Step 4.
 | Launch **and configure** a managed (Prism) agent | `references/agents.md` |
 | Orgs / projects / project members / invitations with project roles / tokens (+ how a token gets project-admin, workload identity federation) | `references/tenancy.md` |
 | Spending, usage, audit | `references/governance.md` |
-| Avoid the traps (fail-open/closed, thresholds, caps, reserved names) | `references/gotchas.md` |
+| Avoid the traps (fail-open/closed, thresholds, caps, reserved names, upgrade/brand changes) | `references/gotchas.md` |
 | Step-by-step recipes for the common jobs | `references/playbooks.md` |
 
 ## Rules

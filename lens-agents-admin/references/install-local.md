@@ -7,14 +7,14 @@ says "install Lens Agents" (no other context), do this, no need to ask. (A
 production deployment is a guided engagement; point them to Getting Started /
 contact us — see the end of this file.) It's the host-shell phase — **there is
 no MCP yet**; the admin `/mcp` only becomes reachable after Step 3 (port-forward)
-+ Step 4 (Lens Hub enrollment). Run these as the coding agent doing the install;
-pause only for the human's browser steps (the Step 4 Lens Hub connect and sign-in,
-and the Step 5 MCP login).
++ Step 4 (activation and sign-in setup). Run these as the coding agent doing the
+install; pause only for the human's browser steps (the Step 4 Activate screen,
+Lens ID approval and sign-in, and the Step 5 MCP login).
 
 > **Before you start — get a full-access shell.** Every step below runs real
 > **host** commands (Docker/OrbStack, minikube, kubectl, Helm) that need the
 > **Docker socket** and **network** (image pulls, the Helm OCI chart,
-> Lens Hub enrollment). A restricted/read-only or no-network agent sandbox **cannot**
+> the Lens ID sign-in setup). A restricted/read-only or no-network agent sandbox **cannot**
 > complete this. **Ask the user once, up front, for full/unsandboxed shell
 > permissions** (e.g. Codex: full-access mode) — don't start sandboxed and hit
 > the wall mid-install. Two common gotchas: (1) the container runtime may be
@@ -40,12 +40,12 @@ and the Step 5 MCP login).
 | `docker` | `docker info` | minikube's driver (see below) |
 | `minikube` | `minikube version` | |
 | `kubectl` | `kubectl version --client` | |
-| `helm` **v3.8+** | `helm version` | OCI support required |
+| `helm` **v3.14+** | `helm version` | OCI, and `--reset-then-reuse-values` for upgrades |
 | `openssl` | `openssl version` | generates the encryption key |
 | `curl` | `curl --version` | health check |
 
 Plus: outbound internet, a **Lens ID** account (sign up at `app.k8slens.dev`; it
-signs in to both Lens Hub and the platform),
+signs in to the platform through Lens Cloud),
 and **one inference-provider credential** — an **OpenRouter** API key (fewest
 steps: no cloud account, no IAM, no region), an **AWS Bedrock** API key, an
 **Azure (Microsoft Foundry)** resource URL + API key with a Claude deployment,
@@ -74,8 +74,15 @@ kubectl cluster-info
 ## Step 2 — Install the platform (choose an inference provider)
 
 The chart is an OCI artifact on GHCR; it bundles PostgreSQL and defaults its IdP
-to Lens ID. **Managed inference** means the platform holds the provider
-credential and proxies every LLM call (metered/gated/audited).
+to Lens ID. Releases also publish it as
+`oci://ghcr.io/lensapp/charts/mirantis-agent-platform` — the same chart under
+another name, rendering the same resources (still named `lens-agents`), so either
+works and a release can move between them with `helm upgrade`. This guide uses
+`oci://ghcr.io/lensapp/lens-agents`. The web UI shows the Mirantis Agent Platform
+brand; add `--set branding.preset=lens` for the Lens Agents brand.
+
+**Managed inference** means the platform holds the provider credential and
+proxies every LLM call (metered/gated/audited).
 
 > **Ask the user which credential they hold** before you install, and use that
 > block. Do **not** default to Bedrock: with no token and no AWS credentials
@@ -184,43 +191,70 @@ The forward binds `127.0.0.1`; `*.localtest.me`→127.0.0.1 too, so the platform
 and every sandbox UI are reachable over this one forward. (If your resolver
 blocks loopback DNS, add an `/etc/hosts` entry or a dnsmasq wildcard.)
 
-## Step 4 — Enroll with Lens Hub and sign in (needs the human + their system browser)
+## Step 4 — Activate and sign in (needs the human + their system browser)
 
-Every install must **enroll with Lens Hub** before it does any agent work: until
-then REST and `/mcp` answer `503 fleet_enrollment_required` (health, sign-in and
-the setup screen stay up).
+A fresh install asks for an **activation** and a way to **sign in** before anyone
+can use it. Activation is local (no Lens service involved); the install then runs
+a **30-day evaluation** (see below).
 
-1. Read the setup code the chart generated (`helm install` prints this command too):
+1. Read the activation code the chart generated (`helm install` prints this command too):
    ```bash
-   kubectl -n default get secret lens-agents-hub-setup -o jsonpath='{.data.setupCode}' | base64 -d; echo
+   kubectl -n default get secret lens-agents-activation -o jsonpath='{.data.activationCode}' | base64 -d; echo
    ```
-   (`<fullname>-hub-setup` — `lens-agents-hub-setup` here — or `hub.setup.existingSecret`;
-   key `hub.setup.key`, default `setupCode`; the generated code is
-   `xxxx-xxxx-xxxx-xxxx` and is kept across upgrades. The printed command ends
-   in `; echo` (as above) so the code sits on its own line; a trailing `%` copied
-   from zsh's no-newline marker is accepted.)
-2. Open `http://localhost:3002`. The **Connect to LNS Hub** screen asks for the
-   **Setup code** → **Continue to LNS Hub**. A wrong code is refused after ~1 s
-   (no lockout).
-3. In Lens Hub, sign in with Lens ID and pick the owner and a fleet name. Lens Hub
-   registers and enrolls the fleet and sends the browser back to the platform.
-4. Sign in with Lens ID (through the sign-in client Lens Hub provisioned). **Whoever creates the organization becomes its admin** — required to create sandboxes. (If `config.ownerEmails` is set, only those accounts may create orgs; empty leaves it open to any signed-in user.)
+   (`<fullname>-activation` — `lens-agents-activation` here — or
+   `activation.code.existingSecret`; key `activation.code.key`, default
+   `activationCode`. The chart keeps the code across upgrades; only people who
+   can read the release's Secrets have it.)
+2. Open `http://localhost:3002`. The **Activate** screen asks for a name, company,
+   work email and the code. Or from the CLI:
+   `nexusctl installation activate --server http://localhost:3002 --code <code> --name "<name>" --company "<company>" --email <email>`.
+   Activation creates the **first organization, named after the company** (when
+   there is none). **Use the email of the Lens ID account you'll sign in with** —
+   only that sign-in becomes the org's admin. If `config.ownerEmails` is set, the
+   email must be one of them.
+3. Choose sign-in (only when `oidc.clientId` is empty, as here): **Use Lens ID as
+   OIDC** → approve the device code with Lens ID in Lens Cloud, which registers
+   this install's sign-in client. CLI:
+   `nexusctl installation use-lens-id --server http://localhost:3002 --code <code>`.
+   The Lens ID that approves owns that registration — prefer a long-lived
+   service account over a personal one. (Your own IdP instead: set
+   `oidc.issuer`, `oidc.jwksUri` and `oidc.clientId` and upgrade.)
+4. Sign in with Lens ID. **The person whose email activated the install becomes
+   admin of that first org on first sign-in** (unless the IdP marks the email
+   unverified) — required to create sandboxes. Everyone else joins by invitation.
 
-Check it: `nexusctl installation status` shows `Enrolled:` and `Hub connection:`;
-REST `GET /v1/installation` reports `enrolled` and `connection`
-(`connecting`|`connected`|`unavailable`).
+Check it: `nexusctl installation status` shows `Activated:` and `Sign-in:`;
+REST `GET /v1/installation` (no auth) reports `activated` and `signInConfigured`.
 
-- **Without the setup screen** (GitOps, production): register the fleet in Lens
-  Hub yourself, put its **Fleet Access Token** (`lnshub_fleet_…` — never a Lens
-  Hub user PAT) in a Secret under `accessToken`, and set `hub.fleetId` +
-  `hub.accessTokenSecret.name`. These win over a fleet connected from the setup
-  screen. With a renderer that has no cluster access (Argo CD, `helm template`)
-  set `hub.setup.existingSecret`, or every render makes a new code;
-  `hub.setup.enabled=false` offers only the Helm values. `hub.publicUrl` is where
-  people open Lens Hub when that differs from the chart's default `hub.url`.
-- Once enrolled, agent work continues through Lens Hub outages (the UI shows a
-  warning banner). Only a revocation in Lens Hub ends it — the install then
-  returns to the setup screen.
+- **Without the Activate screen** (GitOps, production): set all three of
+  `activation.activator.name` / `.company` / `.email` and the install activates
+  itself when it starts (the chart refuses a partial set; the platform
+  won't start with an invalid email, or one not in `config.ownerEmails` when that
+  is set; an already-activated install ignores them). They land in the release's
+  ConfigMap, readable by anyone who can read ConfigMaps there. The Lens ID step
+  still asks for the code. With a renderer that has no cluster access (Argo CD,
+  `helm template`) set `activation.code.existingSecret` (a code of 16+
+  characters), or every render makes a new code.
+
+### Evaluation and license key
+
+- The evaluation lasts **30 days** from activation. When it
+  ends without a valid key, **only the web UI** is blocked (**Evaluation
+  ended**; **License expired** when a key lapses after it): an installation owner
+  enters a key there, or continues the evaluation for another 30 days. `nexusctl`,
+  MCP clients, the REST API and running sandboxes keep working. An expired or
+  revoked key counts as no key.
+- Enter the key on the **License** page (the **Evaluation** card in the sidebar)
+  or with `nexusctl installation license --owner "<name>" <key>` (the name
+  exactly as issued with the key; without arguments it shows the license). It
+  needs a **person's** (OIDC) session of an installation owner — any signed-in
+  person when `config.ownerEmails` is empty; an API token can't.
+- Or by Helm values: `license.owner` plus `license.existingSecret` (key
+  `license.existingSecretKey`, default `LICENSE_KEY`) — or `license.key`, which
+  puts the key in the release's values. The chart refuses an owner without a key
+  or the reverse. The platform stores the key at start on an activated install
+  (replacing one entered in the UI) and won't start with a key that isn't valid
+  for the owner; an expired or revoked one only logs a warning.
 
 ## Step 5 — Connect to the admin MCP and onboard
 
@@ -248,8 +282,9 @@ codex mcp login lens-agents
   Exact params for any tool are in the live schema (`tools/list` / `/v1/openapi.json`).
 
 Then run **playbook #1 "Onboard from zero"** (`playbooks.md`): `list_orgs`
-(empty on a fresh install → **ask the user for an org name and `create_org`
-yourself**; you're OIDC-signed-in, so don't punt to the UI) → `create_project` →
+(returns the org activation created, named after the company — use it; only if
+it's empty, **ask the user for an org name and `create_org` yourself**; you're
+OIDC-signed-in, so don't punt to the UI) → `create_project` →
 `create_policy` (with `managedInference.provider` matching the
 provider you installed) → `create_policy_binding` → `create_sandbox` (the Prism
 agent; set `LLM_PROVIDER` to the same provider, and the now-**required**
@@ -273,7 +308,8 @@ and the Prism chat URL (`exposedPorts[0].url`). See `agents.md` for the exact
 | Chat URL won't resolve | Resolver blocks loopback DNS — `/etc/hosts` entry or dnsmasq. |
 | Prism UI loads but agent doesn't answer | No/wrong inference credential, or provider mismatch across install/policy/sandbox. |
 | Pods `Pending` | Cluster too small — `minikube stop/start -p lens-agents --cpus=4 --memory=6g`. |
-| REST / `/mcp` answers `503 fleet_enrollment_required` | Not enrolled with Lens Hub yet — do Step 4. |
+| Web UI shows only **Activate** | Not activated yet — do Step 4. |
+| Web UI shows only **Evaluation ended** / **License expired** | An installation owner enters a license key or continues the evaluation there; CLI, MCP and API keep working. |
 | A valid Lens ID token gets `401` on REST / `/mcp` | The client gate: the token was issued to a client that is neither the install's own nor in `oidc.delegatedClients`. The log line reads "Client gate: refused this token" with a `reason`. See Production readiness below. |
 
 Logs: `kubectl logs deploy/lens-agents --tail=100`; `kubectl get pods -n lens-agents-sandbox`.
@@ -287,18 +323,20 @@ kubectl delete pvc -l app.kubernetes.io/instance=lens-agents --ignore-not-found
 minikube delete -p lens-agents   # removes only this dedicated profile
 ```
 
-## Upgrading from 0.31 or earlier
+## Upgrading to 0.36
 
-- An install **activated against Lens Cloud** (the old flow) forgets that
-  activation on upgrade: its installation ID, Lens Cloud sign-in client and
-  license are cleared; users, orgs, projects and data stay. It then enrolls with
-  Lens Hub as a new fleet (Step 4), and **everyone signs in again once**.
-- `helm upgrade --reuse-values` from an older chart fails on the missing
-  `hub.accessTokenSecret` — pass your values file with `-f` instead.
-- **Customer SSO** must set `oidc.useExternalProvider=true` (with `oidc.clientId`
-  — without it the platform won't start), or it enrolls as Lens ID; the startup
-  log names the mode it enrolls with.
-- `nexusctl installation activate` is gone; `nexusctl installation status` remains.
+- Upgrade with `helm upgrade lens-agents oci://ghcr.io/lensapp/lens-agents
+  --reset-then-reuse-values …`. **`--reuse-values` fails**: it keeps the old
+  chart's values, which lack the `activation` values the new templates need.
+- **Remove the `hub.*` values and `oidc.useExternalProvider`** — they are no
+  longer read.
+- The Lens Hub enrollment is forgotten; users, orgs, data and the Lens ID
+  sign-in client stay. The web UI shows the **Activate** screen once (Step 4, or
+  the `activation.activator` values); people sign in as before, and `nexusctl`,
+  MCP clients and the REST API keep working meanwhile. The 30-day evaluation
+  starts at that activation.
+- The web UI switches to the **Mirantis Agent Platform** brand; set
+  `branding.preset=lens` to keep Lens Agents.
 
 ## Production readiness (tell the user)
 
@@ -311,13 +349,11 @@ engagement, not self-serve.
 **Client gate (on by default for Lens ID).** `oidc.clientGate`
 (`OIDC_CLIENT_GATE`): `auto` (default) | `always` | `never` — any other value
 fails the chart. `auto` turns it on whenever the install signs in through the
-Lens ID client Lens Hub provisioned (no `oidc.clientId`, `oidc.useExternalProvider`
-off). It then accepts only access tokens (`typ: Bearer`) issued to that client or
+Lens ID client Lens Cloud provisioned (no `oidc.clientId`). It then accepts only access tokens (`typ: Bearer`) issued to that client or
 to a client in `oidc.delegatedClients` (`OIDC_DELEGATED_CLIENTS`); anything else
 gets **401** — no role needed. Until that client exists only delegated clients
 get through. `nexusctl` and MCP clients keep working: the platform signs them in
-through its own client. A set `oidc.clientId` stays the sign-in client after
-enrollment.
+through its own client.
 A pre-provisioned `oidc.clientId` must also accept `<publicUrl>/oauth/callback`,
 or MCP-client sign-ins (Claude Code, Codex) fail with `Invalid parameter:
 redirect_uri`. Behind an ingress, keep its header limit at least
@@ -340,6 +376,10 @@ type is only in the body). Types:
 - `spending_limit.threshold` `{orgId, limitId, period, threshold, limitCents,
   spendCents, periodStart, periodEnd}` when an **org-level** limit reaches **80**
   or **100** % (see `governance.md`).
+- `sandbox.deleted` `{orgId, projectId, sandboxId}` once a sandbox's runtime
+  deletion was **requested** and its record removed — not proof the pod has
+  stopped (the agent can run briefly after). A person's delete and auto-delete
+  both send it; a failed delete sends nothing.
 
 Each delivery is signed
 `X-Lens-Agents-Signature: t=<unix>,v1=<hex HMAC-SHA256 of "<t>.<body>">` with
@@ -361,8 +401,10 @@ clients whose client-credentials token is the **installation service account**;
 private sandbox ports — a null role or an empty list item fails the chart (both in
 `rbac.md`). `SANDBOX_INGRESS_WEBHOOK_MAX_BODY_BYTES` (env, not a chart value,
 default 1 MiB) caps a webhook port's body (see `agents.md`). Install the matching
-CLI with `curl -fsSL <publicUrl>/install.sh | sh`
-(`nexusctl`; refused over plain HTTP except on loopback).
+CLI with `curl -fsSL <publicUrl>/install.sh | sh`, or on Windows (PowerShell)
+`irm <publicUrl>/install.ps1 | iex` (into `%LOCALAPPDATA%\Programs\nexusctl`; an
+x64 build, which ARM64 runs emulated) — `nexusctl`; both refused over plain
+HTTP except on loopback.
 
 **Tools cache** (for sandbox `tools`, see `agents.md`):
 - `sandbox.toolsCache.enabled` (default `true`; `SANDBOX_TOOLS_CACHE` `auto`|`off`).

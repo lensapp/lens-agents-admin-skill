@@ -24,6 +24,7 @@ Know which way each guard fails before you rely on it:
 - Audit API: **max 200** entries/page (cursor pagination). Public exposed-port concurrency default **32**.
 - Sandbox `tools`: **3** install tries per tool; the tools cache keeps release files **30 days**.
 - Sandbox logs: tail **500** default, **10000** max; a follow ends after **60 min**. Workload-identity session: **1 h** default. Event webhooks: retried for **24 h**; spend thresholds announced at **80 / 100 %** (org-level limits only).
+- Evaluation: **30 days** from activation (once it ends, an owner can continue it for another 30, as often as needed). Sandbox auto-recovery: **5** attempts, reset only after a **10 min** clean run.
 - Webhook-port body cap **1 MiB** (HMAC ports). `schedule_wake`: at most **30 days** ahead, started about **2 min** early.
 - Crypto: ephemeral per-sandbox CA **ECDSA P-256** (in-memory only); credential storage **AES-256-GCM**; tokens stored as **SHA-256** (one-way, shown once).
 
@@ -52,7 +53,13 @@ Know which way each guard fails before you rely on it:
 - **Cluster RBAC bound to `<org>/<team>` groups no longer matches** — those groups are gone; rebind to `<org>/<project>` (see `connections.md`).
 - **Bedrock with no Bedrock token, org Bedrock key, or detectable AWS credentials isn't offered** — a policy naming it fails every call (see `inference.md`).
 - **A forward-proxy CONNECT outside the sandbox policy gets 403** (see `architecture.md`).
-- **Nothing works until the install enrolls with Lens Hub** — REST and `/mcp` answer `503 fleet_enrollment_required` (see `install-local.md` Step 4).
+- **A fresh install's web UI shows only the Activate screen** until someone activates it with the code from the `<fullname>-activation` Secret (or `activation.activator` values), and sign-in needs an IdP or Lens ID set up after it (see `install-local.md` Step 4).
+- **`helm upgrade --reuse-values` to 0.36 fails** — it keeps the old chart's values, which lack the new `activation` values; use `--reset-then-reuse-values`. Leftover `hub.*` values and `oidc.useExternalProvider` are silently ignored — remove them (see `install-local.md`).
+- **The default brand changed** — since 0.36 the web UI says **Mirantis Agent Platform**; `branding.preset=lens` keeps Lens Agents. MCP, API, CLI and webhook header names (`X-Lens-Agents-*`) don't change.
+- **An ended evaluation blocks only the web UI** — `nexusctl`, MCP, REST and running sandboxes keep working, so "the UI is locked" isn't "the platform is down". An installation owner enters a license key or continues the evaluation; **an API token can't enter the key** (needs a person's OIDC session).
+- **`sandbox.deleted` doesn't mean the pod is gone** — only that its deletion was requested; the agent can still act briefly after the event.
+- **A sandbox that fails within 10 min of each start stops in `error` after 5 recovery attempts** (Kubernetes) — it isn't retried for ever; fix the cause and start it. An agent the kernel **OOM-kills** now counts as such a failure and restarts the sandbox (it used to sit in `error` with ports answering `502`) — raise `memory` if it keeps happening (see `agents.md`).
+- **nexusctl sandbox arguments also match the display name** (0.36) — a slug or id wins; a name shared by several sandboxes is an error listing their slugs; a UUID-shaped argument is looked up like any name (see `agents.md`).
 - **A valid Lens ID token can still get 401** — the client gate refuses tokens from clients that aren't the install's own or in `oidc.delegatedClients` (see `rbac.md`).
 - **Sandbox `files` are rewritten on every start** (agent edits are lost), and **`scripts` are returned on reads** — never put secrets in either; use credentials.
 - **MCP `create_credential` can't make a GitHub App credential** (it needs a `value`) — use REST or the web UI, or embed it in `create_sandbox`/`update_sandbox`. A GitHub App credential can't be rotated in place; delete and recreate it (see `credentials.md`).

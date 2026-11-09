@@ -106,6 +106,12 @@ Semantics that bite:
   settling or with a stop pending) — wait and retry. It returns the pre-restart
   state: record `health.startedAt`, then poll `get_sandbox` until `state` is
   `started` and `startedAt` differs; `state: error` is terminal.
+- **Auto-recovery (Kubernetes):** a sandbox whose container fails is
+  re-provisioned up to **5** times (backoff from 10 s); the count resets only
+  after a clean run of **10 min** or more, so a workload that fails soon after
+  each start stops in `error` after five attempts. An agent the kernel OOM-kills
+  (cgroup v2) counts as such a failure and the sandbox restarts — it no longer
+  sits in `error` with its ports answering `502`; raise `memory` if it repeats.
 - **Lifecycle timers** — all off unless set; metadata-only (no restart); `null`
   clears:
   - `autoStopMinutes` (1–43200, i.e. up to 30 days): stop after that long with no
@@ -199,8 +205,17 @@ Semantics that bite:
   `log` frames `{text}`, ending with `end {reason: eof|max-duration}` or `error`;
   keepalive every 15 s; a follow ends after 60 min. Project members only, never a
   sandbox token; **409** when there's no current runtime, and only the current
-  runtime's logs exist. **No MCP tool** — CLI `nexusctl sandbox logs <sandbox>
+  runtime's logs exist (a failed sandbox's 409 reads `The sandbox failed, so it
+  has no logs: <reason>`). **No MCP tool** — CLI `nexusctl sandbox logs <sandbox>
   --project <p> [-f] [--tail N]` (`N` 1–10000), or the sandbox page's **Logs** tab.
+- **Naming a sandbox in `nexusctl`:** `<sandbox>` is `<sandbox>`,
+  `<project>/<sandbox>` or `<org>/<project>/<sandbox>`, where the last part is a
+  slug, id or (0.36) display name. A slug or id match wins; a name several
+  sandboxes share is an error listing their slugs (name one by slug); a
+  UUID-shaped name is looked up too. A reference that names its project skips
+  the current context and `--project`. `sandbox cp` treats an absolute path
+  as local; on Windows that includes a drive such as `c:\work` — reach a
+  one-letter sandbox there as `<project>/c:/work`.
 - **Port forward and SSH (CLI only, project ADMIN, no MCP tool):**
   `nexusctl sandbox port-forward <sandbox> LOCAL:REMOTE` (or one number for
   both) listens on `127.0.0.1` and reaches **any** port on the sandbox's

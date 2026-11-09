@@ -37,7 +37,7 @@ admin) and follows `SKILL.md` to stand up the platform and launch a first agent
    `lens-agents-admin/SKILL.md` + `lens-agents-admin/references/*.md` from this
    repo and follow them directly.
 2. **Then read `lens-agents-admin/SKILL.md` and follow it.** For an install
-   request it walks minikube → Helm → enroll with Lens Hub → onboard, ending with a summary
+   request it walks minikube → Helm → activate → onboard, ending with a summary
    and both URLs. Run the install yourself (or read the files directly) — don't
    just paste the `npx` command back into the user's chat.
 
