@@ -30,7 +30,7 @@ then). So a `403` on
 
 **Client gate (on by default for Lens ID).** Even with no role set,
 `oidc.clientGate=auto` (the default) checks the token's client whenever the install
-signs in through the Lens ID client Lens Hub provisioned for it: only access
+signs in through the Lens ID client Lens Cloud provisioned for it: only access
 tokens issued to that client or to one in `oidc.delegatedClients` pass, anything
 else gets **401** — no role is needed. `oidc.clientGate=never` turns it off. So a
 `401` (not `403`) on an otherwise valid Lens ID token usually means a client that
@@ -124,8 +124,11 @@ runbook: `playbooks.md` playbook 6 (and `agents.md`).
 **Creating a brand-new organization** (`create_org`) needs an **OIDC session** —
 which you have on the coding-agent onboarding path. If the install sets
 `config.ownerEmails`, only those accounts may create orgs (empty = any signed-in
-user); whoever creates an org becomes its admin. So if `list_orgs` is empty,
-**ask the user for an org name and call `create_org` yourself**; do **not** send
+user); whoever creates an org becomes its admin. Activation already made the
+first org (its admin is the activating email, at first sign-in). The same owner
+rule gates entering the **license key** and continuing an ended **evaluation**
+(see `install-local.md`); activating needs an owner email when the list is set.
+So if `list_orgs` is empty, **ask the user for an org name and call `create_org` yourself**; do **not** send
 them to the web UI to make it. Org creation is only out of reach for an
 **API-token** principal, which must already have its org.
 

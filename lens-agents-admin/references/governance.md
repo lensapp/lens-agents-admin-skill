@@ -119,6 +119,10 @@ Tools: `query_audit_trail`, `get_audit_stats` (adds a `breakdowns`
 dimension), `get_audit_timeseries` (requires an `interval`, optional
 `groupBy`).
 
+Pages hold at most 200 entries; `nextCursor` is opaque (pass it back unchanged —
+a cursor the API didn't return is 400). The admin UI's audit view filters on
+the server across all pages and can **Jump to** a time.
+
 Use the audit trail to *validate* what you (or another agent) did — pair
 every change with "check the admin UI's audit view / run
 `query_audit_trail`."

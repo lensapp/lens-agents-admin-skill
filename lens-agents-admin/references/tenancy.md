@@ -13,8 +13,10 @@ teams gave), and a user who was only in a team became an org MEMBER.
 Tools: `list_orgs`, `get_org`, `create_org`, `update_org`, `delete_org`,
 `remove_org_member`.
 
-Call `list_orgs` and use the org it returns. **If it's empty** (common right
-after a fresh install/enrollment), **create the org yourself**: ask the user for
+Call `list_orgs` and use the org it returns — on a fresh install that's the org
+**activation created**, named after the company, whose admin is the person
+whose email activated the install (at their first sign-in). **If it's empty**,
+**create the org yourself**: ask the user for
 an org name, then `create_org { name, displayName }`, and continue with its id — don't punt
 to the web UI. `create_org` works on an **OIDC session** (the coding-agent
 onboarding path), because an org is a human's tenant; it's the one creation an
@@ -42,6 +44,11 @@ Tools: `list_projects`, `get_project`, `get_project_public_key`,
 
 `create_project`'s `name` is a unique slug within the org; `displayName` is
 also required.
+
+`list_projects` (REST and MCP) carries the caller's `role` (`ADMIN` | `MEMBER`)
+on each project: an org admin (and the installation service account) sees every
+project of the org as `ADMIN`; a member sees only their projects with their
+role; an API token sees the projects it holds a role in.
 
 `delete_project` and `delete_org` are refused with **409** while the project or
 org still has sandboxes ("…has N sandboxes. Delete them first.", or "…still being

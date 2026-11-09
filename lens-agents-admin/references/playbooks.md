@@ -8,20 +8,20 @@ For exact tool params, read `tools/list` / the OpenAPI spec — these show the
 
 ## 0. No platform yet? Install it first
 
-If nothing is running, follow `install-local.md` (minikube → Helm → enroll with
-Lens Hub → connect to the global `/mcp`), then continue with playbook 1 below.
+If nothing is running, follow `install-local.md` (minikube → Helm → activate →
+connect to the global `/mcp`), then continue with playbook 1 below.
 
 ## 1. Onboard the platform from zero → a running agent
 
-1. `list_orgs` → pick the org id. **If it's empty** (common on a fresh install): you're on an OIDC session here, so **ask the user for an org name and `create_org { name, displayName }` yourself**, then use its id — don't send them to the UI. (Only an API-token principal must defer org creation to a human.) *(tenancy.md)*
+1. `list_orgs` → pick the org id (on a fresh install, the org activation created, named after the company). **If it's empty**: you're on an OIDC session here, so **ask the user for an org name and `create_org { name, displayName }` yourself**, then use its id — don't send them to the UI. (Only an API-token principal must defer org creation to a human.) *(tenancy.md)*
 2. `create_project { orgId, name: "demo", displayName: "Demo" }` → note `projectId`. *(tenancy.md)*
 3. `create_policy { projectId, name: "starter", managedInference: { enabled: true, provider: "<installed-provider>" } }` → note `policyId`. *(policies.md — set the provider the platform was installed with: bedrock | azure | bedrock-mantle | openai | openrouter | litellm. **Don't copy `bedrock` blindly** — a policy still accepts it and Prism's `LLM_PROVIDER` defaults to it, but it works only with a Bedrock token, an org Bedrock key, or AWS credentials the platform found at boot; otherwise all three places "match", the stack comes up clean, and every call fails. `list_inference_providers { orgId }` shows which backends this org can actually use and whose key each runs on.)*
 4. `create_policy_binding { projectId, name: "starter-sandboxes", policyIds: ["<policyId>"], subjects: [{ kind: "all_sandboxes" }] }`. *(policies.md)*
 5. `create_sandbox { projectId, name: "prism-demo", image: "ghcr.io/lensapp/prism-agent:latest", command: "exec ./start.sh", cpu: "500m", memory: "2Gi", env: {...}, volumes: [{mountPath:"/data"}], exposedPorts: [{name:"chat",port:3003,auth:"public"}], imageUpdate: {auto:true}, policyIds: ["<policyId>"] }`. *(agents.md — `cpu`/`memory` required, ≤ the SANDBOX_CPU/SANDBOX_MEMORY ceiling)*
 6. Poll `get_sandbox` until `state=started` and `exposedPorts[0].url` is set (`error` or `completed` means it stopped on its own — see `agents.md`).
 7. **Wrap up — always end an install/onboard with a plain-language summary.** Tell the user:
-   - **What you installed:** the Lens Agents platform + a running **Prism** agent (its first managed agent).
-   - **How to reach each, and what each is for:** the **Lens Agents web UI** (the `config.publicUrl`, e.g. `http://localhost:3002`) to *govern the platform* — projects, policies, agents, audit — vs. the **Prism chat UI** (`exposedPorts[0].url`) to *talk to the agent*. Name this platform-vs-agent distinction explicitly; it's the #1 point of confusion.
+   - **What you installed:** the platform (Mirantis Agent Platform, or Lens Agents with `branding.preset=lens`) + a running **Prism** agent (its first managed agent).
+   - **How to reach each, and what each is for:** the **platform web UI** (the `config.publicUrl`, e.g. `http://localhost:3002`) to *govern the platform* — projects, policies, agents, audit — vs. the **Prism chat UI** (`exposedPorts[0].url`) to *talk to the agent*. Name this platform-vs-agent distinction explicitly; it's the #1 point of confusion.
    - **What's next:** e.g. connect a Kubernetes cluster or other integration, tighten policies, or spin up more agents — and that they can just **ask you (their admin agent)** to do any of it, or use the web UI to watch what you did.
 
 ## 2. "I want a Kubernetes SRE agent"
