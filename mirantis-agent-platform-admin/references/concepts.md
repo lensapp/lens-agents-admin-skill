@@ -86,7 +86,23 @@ you own — there is no middle setting. What leaves the cluster is product event
 the ids **and names** of orgs, projects and sandboxes, plus tool names,
 counts and outcomes — never prompts, completions, tool arguments or credential
 values. Tell an operator who treats object names as sensitive before they
-install, not after. Bedrock keeps data in the AWS account; Azure in the Azure
+install, not after.
+
+**Installation events ignore the opt-out (0.37).** Those settings govern
+*usage* telemetry only. Two events always go to a fixed Lens endpoint built into
+the platform — no Helm value, env var or `telemetry.*` setting disables or
+redirects them:
+- `installation heartbeat` at each pod start and every 24 h: `deployment.id`,
+  `installation.id`, `installation.activation`, `installation.activated`,
+  `deployment.method`, and after activation `license.edition` (or
+  `Evaluation`) and `license.ended`.
+- `installation activated`: the same plus the activator's **name, company and
+  email**; retried hourly until it is accepted once.
+
+Only an install that can't reach that endpoint (air-gapped, egress blocked) or an
+image you build yourself sends neither — say so to a self-hosted operator up front.
+
+Bedrock keeps data in the AWS account; Azure in the Azure
 tenant. **OpenAI and OpenRouter do not** — prompts leave your own
 tenancy, and under OpenRouter the vendor they reach follows the model the agent
 names, so the parties are decided per request.

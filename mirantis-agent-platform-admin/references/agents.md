@@ -204,10 +204,20 @@ Semantics that bite:
   (`tailLines`, default 500, max 10000; `follow`) is a server-sent-events stream —
   `log` frames `{text}`, ending with `end {reason: eof|max-duration}` or `error`;
   keepalive every 15 s; a follow ends after 60 min. Project members only, never a
-  sandbox token; **409** when there's no current runtime, and only the current
-  runtime's logs exist (a failed sandbox's 409 reads `The sandbox failed, so it
+  sandbox token; **409** when there's no current runtime, and the live log is only
+  the current runtime's (a failed sandbox's 409 reads `The sandbox failed, so it
   has no logs: <reason>`). **No MCP tool** — CLI `nexusctl sandbox logs <sandbox>
-  --project <p> [-f] [--tail N]` (`N` 1–10000), or the sandbox page's **Logs** tab.
+  --project <p> [-f] [--tail N] [--previous]` (`N` 1–10000), or the sandbox page's **Logs** tab.
+  **Previous run (0.37):** just before a restart, update, recovery attempt or
+  stop replaces the runtime, the platform keeps the end of its output — last
+  **1,000 lines, ≤256 KiB** — one run per sandbox, **in its database, secrets
+  and all**. Read it with `--previous` (not with `-f`; `--tail 1000` for all of
+  it), `?previous=true` (one `previous-run` frame `{capturedAt, runStartedAt,
+  exitReason, truncated}`, then `log` frames and `end`; 400 with `follow=true`,
+  409 when nothing was kept) or the Logs tab's **Previous run** checkbox; same
+  readers as the live log. A pod removed outside the platform (eviction, lost
+  node, `kubectl delete`) or a runtime that doesn't answer within a few seconds
+  keeps nothing new.
 - **Naming a sandbox in `nexusctl`:** `<sandbox>` is `<sandbox>`,
   `<project>/<sandbox>` or `<org>/<project>/<sandbox>`, where the last part is a
   slug, id or (0.36) display name. A slug or id match wins; a name several
@@ -215,13 +225,17 @@ Semantics that bite:
   UUID-shaped name is looked up too. A reference that names its project skips
   the current context and `--project`. `sandbox cp` treats an absolute path
   as local; on Windows that includes a drive such as `c:\work` — reach a
-  one-letter sandbox there as `<project>/c:/work`.
+  one-letter sandbox there as `<project>/c:/work`. Since 0.37 the slug is also
+  the sandbox's **hostname** inside the runtime (the pod name is unchanged).
 - **Port forward and SSH (CLI only, project ADMIN, no MCP tool):**
   `nexusctl sandbox port-forward <sandbox> LOCAL:REMOTE` (or one number for
   both) listens on `127.0.0.1` and reaches **any** port on the sandbox's
   loopback, exposed or not. A closed port → 502. Each forward is audited as
   `sandbox.port-forward`; `--stdio` carries one connection for an OpenSSH
-  `ProxyCommand`. The sandbox's egress policy doesn't apply to it.
+  `ProxyCommand`. The sandbox's egress policy doesn't apply to it. A sign-in
+  **or a project-ADMIN API token** (federated too) works here and for `sandbox
+  exec`, `cp` and `shell` (0.37; before, API tokens got 401); a sandbox token
+  gets 401.
   **Plain OpenSSH** (`ssh`, `scp`, `sftp`, VS Code Remote-SSH) needs no sshd in
   the image: `nexusctl sandbox ssh-config --project <org>/<project>` prints one
   `~/.ssh/config` entry, `Host *.<project>.<org>.nexus` (`--org <org>` →

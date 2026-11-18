@@ -123,6 +123,16 @@ Pages hold at most 200 entries; `nextCursor` is opaque (pass it back unchanged �
 a cursor the API didn't return is 400). The admin UI's audit view filters on
 the server across all pages and can **Jump to** a time.
 
+**Sandbox requests (0.37, REST only, no MCP tool):** `GET
+/v1/orgs/{orgId}/audit-trail/requests` (`startTime`, `endTime`, `result`)
+counts sandbox network requests per sandbox and request (query string dropped),
+most frequent first — at most 2,000 rows, with `truncated`. `result=failure`
+gives the refused ones. Org admins see every project; others the projects they
+can access. The org **Policies** page builds on it: its **Ceiling** and
+**Project access** tabs show what the ceiling cuts per host and per project, and
+an org admin can add a rule to an existing ceiling policy (or edit that change
+as YAML) — an org-policy update, so still OIDC org-admin only.
+
 Use the audit trail to *validate* what you (or another agent) did — pair
 every change with "check the admin UI's audit view / run
 `query_audit_trail`."

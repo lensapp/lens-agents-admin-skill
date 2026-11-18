@@ -110,7 +110,8 @@ Clipping is restriction-only and happens **at resolve time**, not at save:
   `narrowedDomains` item (one per pattern and scheme) carries `ceilingPattern`,
   `requestedRules`, `effectiveRules`, `removedRules`, `addedRules` and a readable
   `changes`. A rule merely narrowed (any method → GET) is not in `removedRules` —
-  it shows in `effectiveRules`.
+  it shows in `effectiveRules`. In the web UI (0.37), the org **Policies** page's
+  **Ceiling** and **Project access** tabs show these cuts (see `governance.md`).
 
 **Why this matters for admin agents ("Odin"):** a project-admin agent can rewrite
 its project's policies/bindings and launch sandboxes, but an org ceiling still
