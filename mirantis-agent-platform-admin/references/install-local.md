@@ -205,8 +205,11 @@ a **30-day evaluation** (see below).
    `activationCode`. The chart keeps the code across upgrades; only people who
    can read the release's Secrets have it.)
 2. Open `http://localhost:3002`. The **Activate** screen asks for a name, company,
-   work email and the code. Or from the CLI:
-   `nexusctl installation activate --server http://localhost:3002 --code <code> --name "<name>" --company "<company>" --email <email>`.
+   work email and the code, plus a checkbox to accept the **Mirantis Privacy
+   Policy** (0.37) — activation is refused without it. Or from the CLI:
+   `nexusctl installation activate --server http://localhost:3002 --code <code> --name "<name>" --company "<company>" --email <email> --accept-privacy-policy`
+   (REST `POST /v1/installation/activation` needs `privacyPolicyAccepted: true`).
+   The name, company and email go to Mirantis (see `concepts.md`).
    Activation creates the **first organization, named after the company** (when
    there is none). **Use the email of the Lens ID account you'll sign in with** —
    only that sign-in becomes the org's admin. If `config.ownerEmails` is set, the
@@ -226,8 +229,12 @@ Check it: `nexusctl installation status` shows `Activated:` and `Sign-in:`;
 REST `GET /v1/installation` (no auth) reports `activated` and `signInConfigured`.
 
 - **Without the Activate screen** (GitOps, production): set all three of
-  `activation.activator.name` / `.company` / `.email` and the install activates
-  itself when it starts (the chart refuses a partial set; the platform
+  `activation.activator.name` / `.company` / `.email`, plus
+  `activation.activator.acceptPrivacyPolicy=true` (env
+  `ACTIVATION_ACCEPT_PRIVACY_POLICY=true`), and the install activates
+  itself when it starts. Without the acceptance an install that isn't activated
+  yet **won't start** (the chart's notes warn). The chart refuses a partial
+  name/company/email set (the platform
   won't start with an invalid email, or one not in `config.ownerEmails` when that
   is set; an already-activated install ignores them). They land in the release's
   ConfigMap, readable by anyone who can read ConfigMaps there. The Lens ID step
@@ -335,6 +342,14 @@ minikube delete -p lens-agents   # removes only this dedicated profile
   MCP clients and the REST API keep working meanwhile. The 30-day evaluation
   starts at that activation.
 - The web UI switches to the **Mirantis Agent Platform** brand.
+
+## Upgrading to 0.37
+
+- An install that **isn't activated yet** and sets `activation.activator.*`
+  needs `activation.activator.acceptPrivacyPolicy=true`, or it won't start.
+  Activated installs are unaffected.
+- `telemetry.enabled=false` no longer means nothing leaves the cluster: the
+  installation events still go out (see `concepts.md`).
 
 ## Production readiness (tell the user)
 

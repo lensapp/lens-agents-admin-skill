@@ -18,7 +18,7 @@ compatibility: >-
   Mirantis Agent Platform MCP endpoint.
 metadata:
   version: "1.0"
-  platformRelease: "lens-agents-platform-v0.36.0"
+  platformRelease: "lens-agents-platform-v0.37.0"
 ---
 
 # Mirantis Agent Platform — Platform Admin
