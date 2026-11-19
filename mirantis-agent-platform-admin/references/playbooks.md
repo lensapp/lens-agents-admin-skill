@@ -20,7 +20,7 @@ connect to the global `/mcp`), then continue with playbook 1 below.
 5. `create_sandbox { projectId, name: "prism-demo", image: "ghcr.io/lensapp/prism-agent:latest", command: "exec ./start.sh", cpu: "500m", memory: "2Gi", env: {...}, volumes: [{mountPath:"/data"}], exposedPorts: [{name:"chat",port:3003,auth:"public"}], imageUpdate: {auto:true}, policyIds: ["<policyId>"] }`. *(agents.md — `cpu`/`memory` required, ≤ the SANDBOX_CPU/SANDBOX_MEMORY ceiling)*
 6. Poll `get_sandbox` until `state=started` and `exposedPorts[0].url` is set (`error` or `completed` means it stopped on its own — see `agents.md`).
 7. **Wrap up — always end an install/onboard with a plain-language summary.** Tell the user:
-   - **What you installed:** the platform (Mirantis Agent Platform, or Lens Agents with `branding.preset=lens`) + a running **Prism** agent (its first managed agent).
+   - **What you installed:** the platform (Mirantis Agent Platform) + a running **Prism** agent (its first managed agent).
    - **How to reach each, and what each is for:** the **platform web UI** (the `config.publicUrl`, e.g. `http://localhost:3002`) to *govern the platform* — projects, policies, agents, audit — vs. the **Prism chat UI** (`exposedPorts[0].url`) to *talk to the agent*. Name this platform-vs-agent distinction explicitly; it's the #1 point of confusion.
    - **What's next:** e.g. connect a Kubernetes cluster or other integration, tighten policies, or spin up more agents — and that they can just **ask you (their admin agent)** to do any of it, or use the web UI to watch what you did.
 
@@ -119,7 +119,7 @@ tokens + set project members (OIDC org-admin). Ask **which project(s)** Odin man
 6. `create_sandbox { projectId:<home>, name:"odin", image:"ghcr.io/lensapp/prism-agent:latest", command:"exec ./start.sh", cpu:"500m", memory:"2Gi", env:{ LLM_PROVIDER:"..." }, volumes:[{mountPath:"/data"}], exposedPorts:[{name:"web",port:3003,auth:"private"}], imageUpdate:{auto:true}, policyIds:["<homePolicyId>"] }`; poll `get_sandbox` for the chat URL. Attaching the policy **to the sandbox** here scopes admin to *this* sandbox — don't bind it `all_sandboxes` or you elevate every sandbox in the project. Prefer `auth:"private"` (requires a platform session to reach the chat) for a project-admin agent; `"public"` only for a throwaway trial. *(agents.md — `cpu`/`memory` required)*
 7. Seed the admin skill so Odin knows it's an admin — no platform tool writes into
    Odin's container, so you can't write its `/data` from here. Instead **ask Odin over its chat to install the skill itself**,
-   giving it the repo link `https://github.com/lensapp/lens-agents-admin-skill`.
+   giving it the repo link `https://github.com/lensapp/mirantis-agent-platform-admin-skill`.
    First add the egress its install path needs to Odin's policy `allowedDomains`
    (public repo — just domains, no credential, so this is *not* the playbook-4
    secret recipe): a `git clone`/tarball fetch needs `github.com` + `codeload.github.com`

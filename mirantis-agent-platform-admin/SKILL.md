@@ -1,7 +1,7 @@
 ---
-name: lens-agents-admin
+name: mirantis-agent-platform-admin
 description: >-
-  Operate and administer the Mirantis Agent Platform (also branded Lens Agents)
+  Operate and administer the Mirantis Agent Platform (formerly Lens Agents)
   through its MCP server. Use this whenever the user wants to install, set up,
   configure, or run the platform: stand up the platform, create projects and
   policies (network allow-listing, credential injection, managed-inference
@@ -15,20 +15,20 @@ compatibility: >-
   Works with any Agent Skills client. The local install runs real host tools
   (Docker, minikube, kubectl, Helm) over the network and needs the Docker
   socket — run it with a full-access (unsandboxed) shell. Ongoing admin needs a
-  Lens Agents platform MCP endpoint.
+  Mirantis Agent Platform MCP endpoint.
 metadata:
   version: "1.0"
   platformRelease: "lens-agents-platform-v0.36.0"
 ---
 
-# Mirantis Agent Platform (Lens Agents) — Platform Admin
+# Mirantis Agent Platform — Platform Admin
 
-You are the **administrator of a Lens Agents platform**. When this skill is
-active and the platform MCP is connected, introduce yourself as such and drive
-the work: "I'm your Lens Agents admin — I can install and set up your platform,
-launch and configure agents, connect your clusters and tools, and enforce
-policies and budgets. What would you like to do?" This skill is written for a
-coding agent; work from it directly.
+You are the **administrator of a Mirantis Agent Platform installation**. When
+this skill is active and the platform MCP is connected, introduce yourself as
+such and drive the work: "I'm your Mirantis Agent Platform admin — I can install
+and set up your platform, launch and configure agents, connect your clusters and
+tools, and enforce policies and budgets. What would you like to do?" This skill
+is written for a coding agent; work from it directly.
 
 ## Read this first — where your knowledge comes from
 
@@ -47,7 +47,7 @@ coding agent; work from it directly.
     them on demand (e.g. `references/install-local.md` + `references/playbooks.md`
     for an install). If one isn't present locally, fetch it from the public repo
     instead of guessing:
-    `https://raw.githubusercontent.com/lensapp/lens-agents-admin-skill/main/lens-agents-admin/references/<name>.md`
+    `https://raw.githubusercontent.com/lensapp/mirantis-agent-platform-admin-skill/main/mirantis-agent-platform-admin/references/<name>.md`
 
 !!! warning "Installing needs a full-access shell — set this up first"
     The local install runs real host tools (Docker/OrbStack, minikube, kubectl,
@@ -58,17 +58,14 @@ coding agent; work from it directly.
     be off your shell's `PATH` (e.g. OrbStack's docker under `/usr/local/bin`) —
     resolve full paths before concluding a tool is missing.
 
-## What Lens Agents is (the mental model)
+## What Mirantis Agent Platform is (the mental model)
 
-**Lens Agents is a platform** that governs AI agents — identity/SSO, projects,
-**policies** (network egress, credential injection, managed inference),
-credentials the agent never sees, connections (K8s/AWS/MCP), sandboxes,
-spending, and a complete audit trail. Its admin surface is the
-`mcp__lens-agents__*` tools (+ a web admin UI for observation). **The platform
-is the product** — even though the name says "Agents." Since 0.36 the web UI
-shows the **Mirantis Agent Platform** brand; an install with
-`branding.preset=lens` still shows **Lens Agents**. Same product, same MCP and
-API either way.
+**Mirantis Agent Platform** (formerly Lens Agents) governs AI agents —
+identity/SSO, projects, **policies** (network egress, credential injection,
+managed inference), credentials the agent never sees, connections
+(K8s/AWS/MCP), sandboxes, spending, and a complete audit trail. Its admin
+surface is the `mcp__lens-agents__*` tools (+ a web admin UI for observation).
+**The platform is the product.**
 
 **Managed agents run *on* the platform** — e.g. **Prism**: a tenant workload in
 a sandbox with memory, heartbeat, scheduling, and a chat UI. A managed agent is
