@@ -89,8 +89,8 @@ values. Tell an operator who treats object names as sensitive before they
 install, not after.
 
 **Installation events ignore the opt-out (0.37).** Those settings govern
-*usage* telemetry only. Two events always go to a fixed Lens endpoint built into
-the platform — no Helm value, env var or `telemetry.*` setting disables or
+*usage* telemetry only. Two events always go to a fixed Mirantis endpoint built
+into the platform — no Helm value, env var or `telemetry.*` setting disables or
 redirects them:
 - `installation heartbeat` at each pod start and every 24 h: `deployment.id`,
   `installation.id`, `installation.activation`, `installation.activated`,

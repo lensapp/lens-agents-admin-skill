@@ -95,8 +95,8 @@ admin's OIDC context — the same rule as spending-limit mutations.
 Sandbox Edit, Start, Stop, Delete and Terminal are project-ADMIN actions (the
 API always refused them for a MEMBER). The web UI now shows them disabled for a
 project MEMBER, with the reason. Port forward and SSH also need project ADMIN —
-a person's session or (0.37) a project-ADMIN API token, federated too, as for
-exec and terminal; a MEMBER token or a sandbox token is still refused.
+a person's session or (0.37) a project-ADMIN API token, federated too; the same
+holds for exec, cp and shell. A MEMBER token or a sandbox token is still refused.
 
 ## Sandbox principals are MEMBER — until you give them a project-admin token via `nexus-api`
 
