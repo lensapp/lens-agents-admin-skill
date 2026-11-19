@@ -198,7 +198,7 @@ Semantics that bite:
   to at most 1024 px and stores WebP (first frame only). Project ADMIN sets or
   removes it; anyone with project access reads it. Metadata only: no revision, no
   restart. Reads carry `iconHash`; `?v=<iconHash>` makes the answer cacheable. The
-  web UI edits it in the sandbox's settings; the Lens Agents client shows it as
+  web UI edits it in the sandbox's settings; the desktop client shows it as
   the agent's icon.
 - **Logs:** REST `GET /v1/projects/{projectId}/sandboxes/{sandboxId}/logs`
   (`tailLines`, default 500, max 10000; `follow`) is a server-sent-events stream —
@@ -307,12 +307,13 @@ Capabilities to know when configuring an agent:
 
 ## Seeding a skill (e.g. this one) into a spawned agent — no code, no rebuild
 Skills load from `<DATA>/skills` (=`/data/skills`) and hot-reload on directory
-mtime. Get `lens-agents-admin/SKILL.md` (+ `references/`) there one of two ways:
+mtime. Get `mirantis-agent-platform-admin/SKILL.md` (+ `references/`) there one
+of two ways:
 - **Pre-seed** the `/data` volume at create time (you own the volume then).
 - **Ask the agent to install it itself** — the reliable runtime path. No platform
   tool writes into another agent's container, so you can't write *its* `/data`
   over MCP. Instead talk to the agent over its chat and ask it to install the skill from its repo link, e.g.
-  `https://github.com/lensapp/lens-agents-admin-skill` (via `npx skills add <source> --copy`
+  `https://github.com/lensapp/mirantis-agent-platform-admin-skill` (via `npx skills add <source> --copy`
   or a `git clone`/curl into `$PRISM_DATA_DIR/skills`). Add the egress its install
   path needs to the agent's policy `allowedDomains` first (public repo — domains
   only, no credential): `git clone`/tarball needs `github.com` + `codeload.github.com`

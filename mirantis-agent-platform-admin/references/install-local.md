@@ -1,15 +1,15 @@
 # Install the platform locally (from nothing)
 
-This is the authoritative runbook to stand up the whole Lens Agents platform on
-a local single-node **minikube** cluster, then hand off to the onboarding
+This is the authoritative runbook to stand up the whole Mirantis Agent Platform
+on a local single-node **minikube** cluster, then hand off to the onboarding
 playbook. **This local trial is the self-serve install** — so when a user just
-says "install Lens Agents" (no other context), do this, no need to ask. (A
-production deployment is a guided engagement; point them to Getting Started /
-contact us — see the end of this file.) It's the host-shell phase — **there is
-no MCP yet**; the admin `/mcp` only becomes reachable after Step 3 (port-forward)
-+ Step 4 (activation and sign-in setup). Run these as the coding agent doing the
-install; pause only for the human's browser steps (the Step 4 Activate screen,
-Lens ID approval and sign-in, and the Step 5 MCP login).
+says "install Mirantis Agent Platform" (no other context), do this, no need to
+ask. (A production deployment is a guided engagement; point them to Getting
+Started / contact us — see the end of this file.) It's the host-shell phase —
+**there is no MCP yet**; the admin `/mcp` only becomes reachable after Step 3
+(port-forward) + Step 4 (activation and sign-in setup). Run these as the coding
+agent doing the install; pause only for the human's browser steps (the Step 4
+Activate screen, Lens ID approval and sign-in, and the Step 5 MCP login).
 
 > **Before you start — get a full-access shell.** Every step below runs real
 > **host** commands (Docker/OrbStack, minikube, kubectl, Helm) that need the
@@ -78,8 +78,7 @@ to Lens ID. Releases also publish it as
 `oci://ghcr.io/lensapp/charts/mirantis-agent-platform` — the same chart under
 another name, rendering the same resources (still named `lens-agents`), so either
 works and a release can move between them with `helm upgrade`. This guide uses
-`oci://ghcr.io/lensapp/lens-agents`. The web UI shows the Mirantis Agent Platform
-brand; add `--set branding.preset=lens` for the Lens Agents brand.
+`oci://ghcr.io/lensapp/lens-agents`.
 
 **Managed inference** means the platform holds the provider credential and
 proxies every LLM call (metered/gated/audited).
@@ -335,8 +334,7 @@ minikube delete -p lens-agents   # removes only this dedicated profile
   the `activation.activator` values); people sign in as before, and `nexusctl`,
   MCP clients and the REST API keep working meanwhile. The 30-day evaluation
   starts at that activation.
-- The web UI switches to the **Mirantis Agent Platform** brand; set
-  `branding.preset=lens` to keep Lens Agents.
+- The web UI switches to the **Mirantis Agent Platform** brand.
 
 ## Production readiness (tell the user)
 

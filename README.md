@@ -1,14 +1,15 @@
-# lens-agents-admin skill
+# mirantis-agent-platform-admin skill
 
 An [Agent Skill](https://agentskills.io) that turns any coding agent (Claude
-Code, Codex, OpenCode, …, or a Prism agent) into a **Lens Agents platform
+Code, Codex, OpenCode, …, or a Prism agent) into a **Mirantis Agent Platform
 admin** — grounded in the platform's MCP admin surface so it can install, set
 up, and govern the platform (projects, policies, connections, agents, spending,
 audit) without you knowing the internals.
 
-The skill lives in [`lens-agents-admin/`](lens-agents-admin/): the agent-facing
-runbook is [`SKILL.md`](lens-agents-admin/SKILL.md), with deep detail in
-[`references/`](lens-agents-admin/references/). Humans don't need to read those.
+The skill lives in [`mirantis-agent-platform-admin/`](mirantis-agent-platform-admin/):
+the agent-facing runbook is [`SKILL.md`](mirantis-agent-platform-admin/SKILL.md), with
+deep detail in [`references/`](mirantis-agent-platform-admin/references/). Humans
+don't need to read those.
 
 ## Quick start — paste this into your coding agent
 
@@ -16,30 +17,31 @@ Works in **any** Agent Skills client (Claude Code, Codex, OpenCode, … — CLI 
 desktop app). Just paste this prompt; the agent installs the skill itself and
 follows it:
 
-> **Install the Lens Agents admin skill from https://github.com/lensapp/lens-agents-admin-skill/tree/main/lens-agents-admin and follow it to set up Lens Agents.**
+> **Install the Mirantis Agent Platform admin skill from https://github.com/lensapp/mirantis-agent-platform-admin-skill/tree/main/mirantis-agent-platform-admin and follow it to set up Mirantis Agent Platform.**
 
 (The URL points at the skill **folder**, not the repo root — that's what lets an
 installer grab the skill directly instead of hunting for it.)
 
-The agent installs this skill (so it's reusable — your ongoing Lens Agents
-admin) and follows `SKILL.md` to stand up the platform and launch a first agent
-(Prism), handing you both URLs at the end.
+The agent installs this skill (so it's reusable — your ongoing Mirantis Agent
+Platform admin) and follows `SKILL.md` to stand up the platform and launch a
+first agent (Prism), handing you both URLs at the end.
 
 ### If you are that coding agent
 
 1. **Install this skill so it's reusable** — point your installer at the skill
-   **folder URL** (`…/tree/main/lens-agents-admin`), not the repo root, so it
-   grabs the skill directly instead of hunting for it:
-   `npx skills add https://github.com/lensapp/lens-agents-admin-skill/tree/main/lens-agents-admin -g -a <your-agent> --copy`
+   **folder URL** (`…/tree/main/mirantis-agent-platform-admin`), not the repo root,
+   so it grabs the skill directly instead of hunting for it:
+   `npx skills add https://github.com/lensapp/mirantis-agent-platform-admin-skill/tree/main/mirantis-agent-platform-admin -g -a <your-agent> --copy`
    (`-a claude-code` | `codex` | `cursor` | …; `-g` = user-level, discovered by
-   both the CLI and the desktop app; the shorthand `lensapp/lens-agents-admin-skill`
-   also works for this CLI). **Can't install it?** Just read
-   `lens-agents-admin/SKILL.md` + `lens-agents-admin/references/*.md` from this
-   repo and follow them directly.
-2. **Then read `lens-agents-admin/SKILL.md` and follow it.** For an install
-   request it walks minikube → Helm → activate → onboard, ending with a summary
-   and both URLs. Run the install yourself (or read the files directly) — don't
-   just paste the `npx` command back into the user's chat.
+   both the CLI and the desktop app; the shorthand
+   `lensapp/mirantis-agent-platform-admin-skill` also works for this CLI).
+   **Can't install it?** Just read `mirantis-agent-platform-admin/SKILL.md` +
+   `mirantis-agent-platform-admin/references/*.md` from this repo and follow
+   them directly.
+2. **Then read `mirantis-agent-platform-admin/SKILL.md` and follow it.** For an
+   install request it walks minikube → Helm → activate → onboard, ending with a
+   summary and both URLs. Run the install yourself (or read the files
+   directly) — don't just paste the `npx` command back into the user's chat.
 
 Then connect the agent to your platform's MCP and sign in (OIDC gives it full
 admin — no API token to manage):
@@ -55,8 +57,8 @@ codex mcp login lens-agents
 ```
 
 Complete the sign-in in your **system browser** (not an embedded one). Now just
-talk to the agent: *"set up my Lens Agents platform"*, *"give me a Kubernetes SRE
-agent"*, *"integrate our reservations system over MCP"*.
+talk to the agent: *"set up my Mirantis Agent Platform"*, *"give me a Kubernetes
+SRE agent"*, *"integrate our reservations system over MCP"*.
 
 ### Staying up to date
 
@@ -64,10 +66,14 @@ Installed skills are local copies — they don't auto-update. To refresh to the
 latest version, re-run the update:
 
 ```bash
-npx skills update lens-agents-admin      # or: npx skills add lensapp/lens-agents-admin-skill -a <agent> --copy
+npx skills update mirantis-agent-platform-admin      # or: npx skills add lensapp/mirantis-agent-platform-admin-skill -a <agent> --copy
 ```
 
 If the agent's guidance ever looks out of step with the platform, that's the fix.
+
+The skill was renamed from `lens-agents-admin`. If you installed it under the old
+name, delete the `lens-agents-admin` folder from your agent's skills directory
+and add the skill again with the command above.
 
 > The agent administers the platform **as you** (your OIDC session). The web
 > admin UI at `<publicUrl>` remains — use it to validate and observe what the
@@ -80,14 +86,14 @@ and do its project-scoped work. Drop the bundle into the sandbox's skills dir �
 the catalog hot-reloads on the next turn (no restart):
 
 - **Via the agent (recommended):** ask the running agent over its own chat to
-  install the skill into `/data/skills/lens-agents-admin/` from this repo, or seed
-  the `/data` volume before launch. (The platform `shell_*` tools run in a fresh
-  sandbox as the caller, not inside the agent's container, so they can't write
-  there.)
+  install the skill into `/data/skills/mirantis-agent-platform-admin/` from this
+  repo, or seed the `/data` volume before launch. (The platform `shell_*` tools
+  run in a fresh sandbox as the caller, not inside the agent's container, so
+  they can't write there.)
 - **Or** point `PRISM_SKILLS_DIR` at a pre-seeded mount.
 
 Give it an admin persona (no code) with the agent's own tools: `rename_self`
-("Lens Admin") + `update_soul`, or set `AGENT_NAME` at `create_sandbox` time.
+("Platform Admin") + `update_soul`, or set `AGENT_NAME` at `create_sandbox` time.
 
 > **Making a seeded Prism a project admin ("Odin").** A sandbox's default
 > identity is capped at project **MEMBER**, so a seeded Prism can explain the
@@ -101,7 +107,7 @@ Give it an admin persona (no code) with the agent's own tools: `rename_self`
 > credential, need a human. No prism-agent code, no env token. Odin's
 > authority is exactly the token's scope (scope it least-privilege;
 > `revoke_api_token` is the kill switch). Full runbook:
-> `lens-agents-admin/references/playbooks.md` playbook 6.
+> `mirantis-agent-platform-admin/references/playbooks.md` playbook 6.
 
 ## Philosophy
 
@@ -114,13 +120,14 @@ well (no parameter drift).
 
 ## Layout
 
-The skill lives in the [`lens-agents-admin/`](lens-agents-admin/) directory
-(named to match the skill's `name`, per the [agentskills.io spec](https://agentskills.io/specification)
-— this is what makes `npx skills add` copy the whole bundle, references
-included, rather than just `SKILL.md`):
+The skill lives in the [`mirantis-agent-platform-admin/`](mirantis-agent-platform-admin/)
+directory (named to match the skill's `name`, per the
+[agentskills.io spec](https://agentskills.io/specification) — this is what
+makes `npx skills add` copy the whole bundle, references included, rather than
+just `SKILL.md`):
 
 ```
-lens-agents-admin/
+mirantis-agent-platform-admin/
   SKILL.md            # runbook + router: mental model, connect, "read the live schema", reference map, rules
   references/
   concepts.md         # the WHY — governance model, Mode 1/2, autonomy-vs-policy, honest limitations
